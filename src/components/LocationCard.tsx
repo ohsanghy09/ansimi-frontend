@@ -1,12 +1,12 @@
 
 // 상태 변환 후 화면을 다시 그리는 useState함수를 사용하기 위해 import
-import {useState} from 'react'
+import { useState } from 'react'
 
 
 function LocationCard() {
 
     // 출발, 도착을 구분하는 상태 관리 훅
-    const [searchType, setSearchType] = useState<'start' | 'end' | null>(null) 
+    const [searchType, setSearchType] = useState<'start' | 'end' | null>(null)
 
 
 
@@ -26,16 +26,20 @@ function LocationCard() {
 
 
                 {/* 출발 · 현재 위치 버튼 */}
-                <button 
+                <button
 
                     // `클릭 시 동작` setSearchType으로 searchType의 상태를 바꾸고 삼항연산자를 사용해서 start이면 null로 넣고, 아니라면 start 적용
                     onClick={() => setSearchType(searchType === 'start' ? null : 'start')}
 
                     // `버튼 스타일` text-left는 버튼 내부에 있는 모든 요소의 텍스트는 왼쪽 정렬이 될 수 있도록 함.
-                    className='flex h-12 w-full items-center rounded-xl bg-[#F4F7F2] px-3 text-left'
-                    >
+                    // 공통 스타일과 조건부 스타일이 있는 건 해당 구조로 사용 {`공통 스타일 ${조건부 스타일}`}
+                    className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${searchType === 'start'
+                        ? 'border-[#25A77A] bg-[#EDF8F2]'
+                        : 'border-transparent bg-[#F4F7F2]'
+                        }`}
+                >
                     {/* `초록점` shrink-0은 점이 작아지지 않게. */}
-                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#25A77A]'/>
+                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#25A77A]' />
                     <span className='ml-2.5 w-11 text-[11px] text-[#7A8D81]'>출발</span>
                     <span className='text-sm text-[#86998C]'>장소 또는 주소 검색</span>
                 </button>
@@ -45,19 +49,23 @@ function LocationCard() {
                 <button
 
                     onClick={() => setSearchType(searchType === 'end' ? null : 'end')}
-                    className='flex h-12 w-full items-center rounded-xl bg-[#F4F7F2] px-3 text-left'
+                    // 공통 스타일과 조건부 스타일이 있는 건 해당 구조로 사용 {`공통 스타일 ${조건부 스타일}`}
+                    className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${searchType === 'end'
+                            ? 'border-[#25A77A] bg-[#EDF8F2]'
+                            : 'border-transparent bg-[#F4F7F2]'
+                        }`}
                 >
                     {/* `검은점` shrink-0은 점이 작아지지 않게. */}
-                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#183B36]'/>
-                    <span className='ml-2.5 w-11 text-[11px] text-[#7A8D81]'>도착</span>
-                    <span className='text-sm text-[#86998C]'>장소 또는 주소 검색</span>
-                </button>
+                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#183B36]' />
+                <span className='ml-2.5 w-11 text-[11px] text-[#7A8D81]'>도착</span>
+                <span className='text-sm text-[#86998C]'>장소 또는 주소 검색</span>
+            </button>
 
 
-            </div>
+        </div>
 
-            
-        </section>
+
+        </section >
 
 
 

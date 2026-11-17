@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 
 import MainPage from './pages/MainPage'
 import ExamplePage from './examples/ExamplePage'
+import ExampleComponent from './examples/ExampleComponent'
 import LocationCard from './components/LocationCard'
 import KaKaoMap from './components/KaKaoMap'
 
@@ -23,6 +24,9 @@ function App() {
 
         {/* 예제 화면 */}
         <Route path='/example' element={<ExamplePage />}/>
+
+        {/* 컴포넌트 예제 화면 */}
+        <Route path='/exampleCo' element={<ExampleComponent />}/>
 
 
 
