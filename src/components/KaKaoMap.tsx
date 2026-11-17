@@ -140,7 +140,7 @@ function KaKaoMap() {
     // 지도 div
     <div 
         ref={mapContainer}
-        className="w-full h-[600px] border-2 border-gray-300 rounded-lg"
+        className="w-full h-[50dvh] border-2 border-gray-300 rounded-lg"
     >
     </div>
 

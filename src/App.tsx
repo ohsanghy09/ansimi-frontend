@@ -13,7 +13,7 @@ import KaKaoMap from './components/KaKaoMap'
 function App() {
   return (
 
-    <main>
+    <main className='min-h-screen'>
       
       {/* 라우팅 화면 목록 */}
       <Routes>
