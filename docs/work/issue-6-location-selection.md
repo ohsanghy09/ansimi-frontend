@@ -65,6 +65,55 @@
 
 ## 구현 내용
 
+### 출발·도착 카드 선택 및 강조 예제
+
+[ExampleComponent.tsx](../../src/examples/ExampleComponent.tsx)는 기존 `LocationCard.tsx`의 디자인을 바탕으로 카드 선택과 강조 표시를 구현한 별도 예제다. 안심이 제목, 버튼 크기, 문구, 출발·도착 점의 색상을 유지했다. 이 컴포넌트 자체에는 지도나 주소 검색 기능을 연결하지 않았다.
+
+#### 선택 상태와 클릭 동작
+
+`searchType`으로 현재 선택 대상을 관리한다.
+
+```tsx
+const [searchType, setSearchType] = useState<'start' | 'end' | null>(null)
+```
+
+| 값 | 의미 |
+| --- | --- |
+| `null` | 선택 없음 |
+| `'start'` | 출발 선택 |
+| `'end'` | 도착 선택 |
+
+출발 버튼의 클릭 처리는 다음과 같다. 도착 버튼은 `'start'` 대신 `'end'`를 사용한다.
+
+```tsx
+onClick={() => setSearchType(searchType === 'start' ? null : 'start')}
+```
+
+- 선택하지 않은 버튼을 누르면 해당 버튼을 선택한다.
+- 같은 버튼을 다시 누르면 선택을 해제한다.
+- 다른 버튼을 누르면 선택을 전환한다.
+
+클릭 시 `onClick`에서 상태 변경을 요청하고, 다시 렌더링하면서 `className`이 새 상태에 맞는 스타일을 적용한다. 현재 예제에서는 `aria-pressed`를 제외했으며, 선택 강조는 `searchType`과 `className`으로 처리한다.
+
+#### 공통 스타일과 조건부 스타일
+
+JSX의 바깥 `{}` 안에 JavaScript 표현식을 작성한다. 백틱으로 문자열을 만들고 `${}` 안에 조건에 따른 스타일을 넣어 공통 스타일과 합친다.
+
+```tsx
+className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${
+  searchType === 'start'
+    ? 'border-[#25A77A] bg-[#EDF8F2]'
+    : 'border-transparent bg-[#F4F7F2]'
+}`}
+```
+
+| 상태 | 테두리 | 배경 |
+| --- | --- | --- |
+| 선택 | `border-[#25A77A]` 초록색 | `bg-[#EDF8F2]` 연한 초록색 |
+| 미선택 | `border-transparent` 투명 | `bg-[#F4F7F2]` 기존 배경 |
+
+`border-2`는 공통으로 적용하고 테두리 색만 변경한다. `border-transparent`는 테두리를 제거하지 않고 투명하게 표시하므로, 선택·해제할 때 테두리 공간이 유지되고 내부 글자나 점이 밀리지 않는다.
+
 ### 상태 관리
 
 | 상태 | 용도 |
