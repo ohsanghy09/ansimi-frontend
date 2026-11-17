@@ -1,10 +1,59 @@
 ﻿import { useState } from 'react'
 
-function ExampleComponent() {
-  // 출발·도착 선택 상태. 같은 버튼을 다시 누르면 선택을 해제합니다.
-  const [searchType, setSearchType] = useState<'start' | 'end' | null>(null)
+type SearchType = 'start' | 'end'
+
+// 출발지와 도착지가 같은 검색 UI를 사용하고 제목만 바뀝니다.
+function LocationSearch({ searchType }: { searchType: SearchType }) {
+  const [query, setQuery] = useState('')
+  const [message, setMessage] = useState('주소 또는 장소 이름을 입력해주세요.')
+  const label = searchType === 'start' ? '출발지' : '도착지'
 
   return (
+    <section
+      aria-label={`${label} 주소 및 장소 검색`}
+      className="w-full rounded-2xl bg-white p-4 text-[#183B36] shadow-sm"
+    >
+      <form
+        className="flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          setMessage(query.trim()
+            ? '검색 UI 예제입니다. 실제 주소·장소 검색 기능은 아직 연결하지 않았습니다.'
+            : '주소 또는 장소 이름을 입력해주세요.')
+        }}
+      >
+        <label className="min-w-0 flex-1">
+          <span className="mb-2 block text-sm font-semibold">{label} 주소·장소 검색</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setMessage('주소 또는 장소 이름을 입력한 뒤 검색해주세요.')
+            }}
+            placeholder="예: 서울 중구 세종대로 110, 서울역"
+            maxLength={100}
+            className="min-h-12 w-full rounded-xl border border-[#CEDAD0] px-3 text-sm focus:outline-2 focus:outline-[#25A77A]"
+          />
+        </label>
+        <button
+          type="submit"
+          className="min-h-12 shrink-0 self-end rounded-xl bg-[#183B36] px-4 text-sm font-semibold text-white"
+        >
+          검색
+        </button>
+      </form>
+      <p role="status" className="mt-2 text-sm text-[#55786A]">{message}</p>
+    </section>
+  )
+}
+
+function ExampleComponent() {
+  // 출발·도착 선택 상태. 같은 버튼을 다시 누르면 선택을 해제합니다.
+  const [searchType, setSearchType] = useState<SearchType | null>(null)
+
+  return (
+    <div className="space-y-4">
     <section className="rounded-2xl bg-white p-4 shadow-sm">
       <h1 className="text-xl font-bold text-[#183B36]">안심이</h1>
 
@@ -42,6 +91,9 @@ function ExampleComponent() {
         </button>
       </div>
     </section>
+    {/* 선택 대상 변경 시 검색어를 초기화하고, 선택 해제 시 검색창을 숨깁니다. */}
+    {searchType && <LocationSearch key={searchType} searchType={searchType} />}
+    </div>
   )
 }
 

@@ -114,7 +114,75 @@ className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${
 
 `border-2`는 공통으로 적용하고 테두리 색만 변경한다. `border-transparent`는 테두리를 제거하지 않고 투명하게 표시하므로, 선택·해제할 때 테두리 공간이 유지되고 내부 글자나 점이 밀리지 않는다.
 
-### 상태 관리
+### 카드 선택 시 검색 컴포넌트 표시
+
+`ExampleComponent.tsx`에는 출발·도착 카드 아래에 검색 UI를 보여주는 `LocationSearch` 함수를 추가했다. 이 파일 안의 검색 UI와 별도 파일인 `src/components/LocationSearch.tsx`는 현재 각각 존재하며, 예제가 별도 파일을 import하는 구조로 변경하지는 않았다.
+
+```tsx
+{searchType && (
+  <LocationSearch key={searchType} searchType={searchType} />
+)}
+```
+
+- `searchType`이 `null`이면 검색 컴포넌트를 표시하지 않는다.
+- `'start'` 또는 `'end'`이면 검색 컴포넌트를 표시하고 선택 대상을 전달한다.
+- 이 코드를 출발·도착 카드 다음에 배치하여 검색 UI가 카드 하단에 나타나게 한다.
+- 같은 카드를 다시 누르면 선택이 해제되어 검색 UI도 사라진다.
+- `key`가 바뀌면 React가 기존 검색 컴포넌트를 제거하고 새로 생성하여 내부 검색어와 안내 상태를 초기화한다.
+- `key`는 React가 사용하는 특별한 속성이므로 함수의 일반 props로 전달되지 않는다. 선택 대상은 `searchType` 속성으로 전달한다.
+
+### 별도 주소·장소 검색 카드 컴포넌트
+
+[LocationSearch.tsx](../../src/components/LocationSearch.tsx)에 실제 화면에서 사용할 검색 카드 UI를 작성했다. 출발지·도착지 제목, 입력창, 검색 버튼, 안내 문구와 입력창 선택 시 초록색 강조를 제공한다.
+
+| props | 역할 |
+| --- | --- |
+| `searchType` | 필수 값. `'start'`이면 출발지, `'end'`이면 도착지 제목 표시 |
+| `onSearch` | 선택 값. 입력한 검색어를 전달받는 부모의 함수 |
+
+```tsx
+type LocationSearchProps = {
+  searchType: 'start' | 'end'
+  onSearch?: (query: string) => void
+}
+```
+
+`query` 상태는 입력값을, `message` 상태는 입력창 아래 안내를 관리한다. 입력은 최대 100자로 제한한다.
+
+검색 버튼 클릭과 Enter 입력은 모두 `handleSubmit`으로 처리한다.
+
+1. `event.preventDefault()`로 폼 제출에 따른 페이지 이동을 막는다.
+2. `trim()`으로 검색어 앞뒤 공백을 제거한다.
+3. 빈 검색어면 입력 안내를 표시하고 중단한다.
+4. `onSearch`가 없으면 “검색 기능은 준비 중입니다.”를 표시한다.
+5. 함수가 있으면 안내를 지우고 `onSearch(keyword)`로 검색어를 전달한다.
+
+이 컴포넌트는 카카오 검색 API를 직접 호출하지 않는다. 실제 검색 결과 목록, 결과 개수, 지도 이동, 위치 확정은 아직 연결하지 않았다. `ExamplePage.tsx`의 검색 기능과 구분한다.
+
+#### 가독성을 위한 코드 정리
+
+- `props`로 객체를 받은 뒤 `props.searchType`, `props.onSearch`를 각각 변수로 꺼낸다.
+- 출발지·도착지 제목은 `if`문으로 결정한다.
+- 입력 변경은 `handleChange`, 폼 제출은 `handleSubmit`으로 분리한다.
+- JSX에는 `onChange={handleChange}`, `onSubmit={handleSubmit}`처럼 연결만 작성한다.
+- 이벤트 타입은 `ChangeEvent<HTMLInputElement>`, `FormEvent<HTMLFormElement>`로 지정한다.
+- 타입, 상태, 검색 처리, 화면 요소에 역할을 설명하는 주석을 작성했다.
+
+정리 전후의 기능과 디자인은 동일하다. 별도 검색 카드 작성 및 가독성 정리 후 `npm run build`와 `npm run lint`가 통과했다.
+
+#### MainPage 연결 방향
+
+연결 시 `searchType`을 `MainPage`에서 관리하고 `LocationCard`에 선택 상태와 변경 함수를 전달한다. `LocationCard` 클릭으로 부모 상태를 바꾸고, `MainPage`에서 카드 아래에 검색 컴포넌트를 조건부로 표시한다.
+
+```tsx
+{searchType && (
+  <LocationSearch key={searchType} searchType={searchType} />
+)}
+```
+
+이 예시는 부모에서 상태와 import를 준비한 뒤 사용할 연결 방식이다. 이번 작업에서는 별도 검색 컴포넌트를 `MainPage`에 연결하지 않았다.
+
+### ExamplePage의 상태 관리
 
 | 상태 | 용도 |
 | --- | --- |
