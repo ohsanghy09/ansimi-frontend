@@ -1,11 +1,40 @@
 // 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
 import LocationCard from "../components/location/LocationCard"
 import KaKaoMap from "../components/KaKaoMap"
+import { useState } from 'react'
+import LocationSearch from '../components/location/LocationSearch'
+import LocationConfirm from '../components/location/LocationConfirm'
+import type { Location, LocationType, SelectedLocations } from '../types/location'
 
 
 
 
 function MainPage () {
+    // 여러 컴포넌트가 공유하는 선택 상태는 부모 페이지에서 관리합니다.
+    const [searchType, setSearchType] = useState<LocationType | null>(null)
+    const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
+    const [candidate, setCandidate] = useState<Location | null>(null)
+
+    function cancelSelection() {
+        setSearchType(null)
+        setCandidate(null)
+    }
+
+    function selectLocation(type: LocationType) {
+        if (searchType === type) {
+            cancelSelection()
+            return
+        }
+        // 확정 주소는 유지하고 새 후보는 다음 단계에서 지도와 연결합니다.
+        setCandidate(null)
+        setSearchType(type)
+    }
+
+    function confirmLocation() {
+        if (!searchType || !candidate) return
+        setLocations((previous) => ({ ...previous, [searchType]: candidate }))
+        cancelSelection()
+    }
 
     return (
 
@@ -29,12 +58,31 @@ function MainPage () {
 
 
             {/* 화면 상단 카드 컴포넌트*/}
-            <LocationCard />
+            <LocationCard searchType={searchType} locations={locations} onSelect={selectLocation} />
+
+            {searchType && (
+                <div className="mt-6">
+                    {/* 선택 대상 변경 시 입력 상태도 초기화합니다. */}
+                    <LocationSearch key={searchType} searchType={searchType} />
+                </div>
+            )}
 
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
                 <KaKaoMap />
             </div>
+
+            {searchType && (
+                <div className="mt-6">
+                    <LocationConfirm
+                        searchType={searchType}
+                        candidate={candidate}
+                        message="검색 및 지도 위치 선택 기능은 준비 중입니다."
+                        onCancel={cancelSelection}
+                        onConfirm={confirmLocation}
+                    />
+                </div>
+            )}
 
             {/* 우측 하단 문구 */}
             <footer className="mt-6 text-right">

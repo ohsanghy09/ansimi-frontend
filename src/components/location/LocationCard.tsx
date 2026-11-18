@@ -1,77 +1,29 @@
 // 역할: 출발·도착 선택 버튼과 확정 주소를 표시합니다.
+import type { LocationType, SelectedLocations } from '../../types/location'
 
-// 상태 변환 후 화면을 다시 그리는 useState함수를 사용하기 위해 import
-import { useState } from 'react'
+type LocationCardProps = {
+  searchType: LocationType | null
+  locations: SelectedLocations
+  onSelect: (type: LocationType) => void
+}
 
-
-function LocationCard() {
-
-    // 출발, 도착을 구분하는 상태 관리 훅
-    const [searchType, setSearchType] = useState<'start' | 'end' | null>(null)
-
-
-
-
-    // 화면 리턴
-    return (
-
-        // 섹션 카드
-        <section className='rounded-2xl bg-white p-4 shadow-sm'>
-
-            {/* 안심이 제목 */}
-            <h1 className='text-xl font-bold text-[#183B36]'>안심이</h1>
-
-
-            {/* 버튼영역 `space는 요소끼리의 간격` */}
-            <div className='mt-4 space-y-2'>
-
-
-                {/* 출발 · 현재 위치 버튼 */}
-                <button
-
-                    // `클릭 시 동작` setSearchType으로 searchType의 상태를 바꾸고 삼항연산자를 사용해서 start이면 null로 넣고, 아니라면 start 적용
-                    onClick={() => setSearchType(searchType === 'start' ? null : 'start')}
-
-                    // `버튼 스타일` text-left는 버튼 내부에 있는 모든 요소의 텍스트는 왼쪽 정렬이 될 수 있도록 함.
-                    // 공통 스타일과 조건부 스타일이 있는 건 해당 구조로 사용 {`공통 스타일 ${조건부 스타일}`}
-                    className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${searchType === 'start'
-                        ? 'border-[#25A77A] bg-[#EDF8F2]'
-                        : 'border-transparent bg-[#F4F7F2]'
-                        }`}
-                >
-                    {/* `초록점` shrink-0은 점이 작아지지 않게. */}
-                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#25A77A]' />
-                    <span className='ml-2.5 w-11 text-[11px] text-[#7A8D81]'>출발</span>
-                    <span className='text-sm text-[#86998C]'>장소 또는 주소 검색</span>
-                </button>
-
-
-                {/* 도착 · 도착지 선택 버튼 */}
-                <button
-
-                    onClick={() => setSearchType(searchType === 'end' ? null : 'end')}
-                    // 공통 스타일과 조건부 스타일이 있는 건 해당 구조로 사용 {`공통 스타일 ${조건부 스타일}`}
-                    className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${searchType === 'end'
-                            ? 'border-[#25A77A] bg-[#EDF8F2]'
-                            : 'border-transparent bg-[#F4F7F2]'
-                        }`}
-                >
-                    {/* `검은점` shrink-0은 점이 작아지지 않게. */}
-                    <span className='h-2.5 w-2.5 shrink-0 rounded-full bg-[#183B36]' />
-                <span className='ml-2.5 w-11 text-[11px] text-[#7A8D81]'>도착</span>
-                <span className='text-sm text-[#86998C]'>장소 또는 주소 검색</span>
-            </button>
-
-
-        </div>
-
-
-        </section >
-
-
-
-
-    ) // return
-} // LocationCard
+function LocationCard({ searchType, locations, onSelect }: LocationCardProps) {
+  return (
+    <section aria-label="출발지와 도착지" className="rounded-2xl bg-white p-4 shadow-sm">
+      <h1 className="text-xl font-bold text-[#183B36]">안심이</h1>
+      <div className="mt-4 space-y-2">
+        {(['start', 'end'] as const).map((type) => (
+          <button key={type} type="button" aria-pressed={searchType === type}
+            onClick={() => onSelect(type)}
+            className={`flex min-h-12 w-full items-center rounded-xl border-2 px-3 py-2 text-left ${searchType === type ? 'border-[#25A77A] bg-[#EDF8F2]' : 'border-transparent bg-[#F4F7F2]'}`}>
+            <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${type === 'start' ? 'bg-[#25A77A]' : 'bg-[#183B36]'}`} />
+            <span className="ml-2.5 w-11 shrink-0 text-[11px] text-[#7A8D81]">{type === 'start' ? '출발' : '도착'}</span>
+            <span className="min-w-0 break-words text-sm text-[#86998C]">{locations[type]?.address ?? '장소 또는 주소 검색'}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 export default LocationCard
