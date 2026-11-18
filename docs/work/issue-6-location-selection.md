@@ -10,7 +10,7 @@
 - 작업 브랜치명: `feat/#6`
 - 현재 구현 위치: [src/examples/ExamplePage.tsx](../../src/examples/ExamplePage.tsx)
 - 확인 경로: 개발 서버의 `/example`
-- 현재 단계: 예제 구현 및 컴포넌트 분리 설계·폴더 정리 완료, 실제 브라우저 검증 및 메인 화면 연결 전
+- 현재 단계: 예제 구현, 컴포넌트 분리 설계·폴더 정리 및 공통 타입 작성 완료, 실제 브라우저 검증 및 메인 화면 연결 전
 
 이번 예제는 `ExamplePage.tsx` 안에서 구현했다. `App.tsx`, `MainPage.tsx`, `LocationCard.tsx`, `KaKaoMap.tsx`에 해당 기능을 적용하는 작업은 포함하지 않았다. 현재 위치 자동 설정, 경로 탐색, 안전도 평가도 이번 작업 범위에 포함하지 않는다.
 
@@ -275,7 +275,7 @@ src/
 
 ### 공통 타입의 의미
 
-`types/location.ts`는 실제 위치 값을 저장하는 파일이 아니다. 데이터의 형태를 한곳에 정의하여 여러 파일에서 같은 타입 선언을 반복하지 않도록 한다. 제안한 타입은 다음과 같으며 아직 코드로 작성하지 않았다.
+`types/location.ts`는 실제 위치 값을 저장하는 파일이 아니다. 데이터의 형태를 한곳에 정의하여 여러 파일에서 같은 타입 선언을 반복하지 않도록 한다. 다음 네 가지 타입을 작성하고 각 항목의 의미를 주석으로 추가했다.
 
 | 타입 | 의미 |
 | --- | --- |
@@ -301,10 +301,23 @@ src/
 
 - 기존 `LocationCard.tsx`, `LocationSearch.tsx`를 `components/location/`으로 이동하고 기존 코드를 유지했다.
 - 이동한 `LocationCard`를 사용하는 `MainPage.tsx`, `App.tsx`의 import 경로를 수정했다.
-- `LocationConfirm.tsx`, `useLocationSearch.ts`, `types/location.ts`를 생성했다. 이 세 파일에는 역할 주석만 있고 구현 코드는 없다.
+- `LocationConfirm.tsx`, `useLocationSearch.ts`, `types/location.ts`를 생성했다. 이후 `types/location.ts`에는 공통 타입을 작성했고, 나머지 두 파일에는 아직 역할 주석만 있다.
 - 구조에 포함된 기존 파일의 맨 위에도 역할 주석을 추가했다. 주석은 구현할 책임을 나타내며 모든 기능이 이미 완성되었다는 뜻은 아니다.
 - `MainPage`의 공유 상태 관리, 실제 검색 연결, 지도 선택 기능, 위치 확정 기능은 아직 적용하지 않았다.
-- 대화에서 제시한 훅·타입·props 코드는 설명용 예시다. 최종 인터페이스로 구현된 상태가 아니다.
+- 대화에서 제시한 검색 훅·컴포넌트 props 코드는 설명용 예시이며 아직 구현하지 않았다. 공통 타입 네 가지는 아래 내용으로 작성했다.
+
+### 공통 타입 작성 완료
+
+[location.ts](../../src/types/location.ts)에 다음 타입을 `export type`으로 정의했다.
+
+- `LocationType`: `'start' | 'end'`로 출발지·도착지를 구분한다.
+- `Location`: 숫자형 `latitude`, `longitude`와 문자열 `address`를 정의한다. 후보 위치와 확정 위치에 공통으로 사용한다.
+- `SearchResult`: `Location`에 문자열 `name`을 추가한다. 장소 이름 또는 주소를 검색 결과의 표시 이름으로 사용한다.
+- `SelectedLocations`: `Record<LocationType, Location | null>`로 출발·도착 키를 모두 정의한다. 아직 확정하지 않은 위치는 `null`이다.
+
+이번 변경은 타입 정의와 설명 주석 작성까지다. 기존 컴포넌트의 로컬 타입을 교체하거나 `MainPage`에 상태·이벤트를 연결하는 작업은 아직 진행하지 않았다.
+
+검증: `./node_modules/.bin/tsc.cmd -b` 실행 결과 TypeScript 검사가 통과했다. 런타임 동작 변경은 없다. 다음 작업은 공통 타입을 사용하여 `MainPage`의 공유 상태를 구성하고 각 컴포넌트를 연결하는 것이다.
 
 ## 실행 및 확인 방법
 
