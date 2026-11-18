@@ -1,4 +1,5 @@
-import LocationCard from "../components/LocationCard"
+// 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
+import LocationCard from "../components/location/LocationCard"
 import KaKaoMap from "../components/KaKaoMap"
 
 

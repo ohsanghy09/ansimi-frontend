@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState } from 'react'
+// 역할: 위치 검색과 지도 선택의 기존 동작을 참고하기 위한 예제 화면입니다.
+import { useEffect, useRef, useState } from 'react'
 
 type Location = { latitude: number; longitude: number; address: string }
 type Mode = 'start' | 'end'

@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+// 역할: 주소·장소 검색 입력창과 검색 결과 목록을 표시합니다.
+import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
 // 부모가 전달하는 선택 대상과 검색 함수입니다.

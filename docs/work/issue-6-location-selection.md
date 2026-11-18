@@ -10,7 +10,7 @@
 - 작업 브랜치명: `feat/#6`
 - 현재 구현 위치: [src/examples/ExamplePage.tsx](../../src/examples/ExamplePage.tsx)
 - 확인 경로: 개발 서버의 `/example`
-- 현재 단계: 예제 구현 완료, 실제 브라우저 검증 및 메인 화면 적용 전
+- 현재 단계: 예제 구현 및 컴포넌트 분리 설계·폴더 정리 완료, 실제 브라우저 검증 및 메인 화면 연결 전
 
 이번 예제는 `ExamplePage.tsx` 안에서 구현했다. `App.tsx`, `MainPage.tsx`, `LocationCard.tsx`, `KaKaoMap.tsx`에 해당 기능을 적용하는 작업은 포함하지 않았다. 현재 위치 자동 설정, 경로 탐색, 안전도 평가도 이번 작업 범위에 포함하지 않는다.
 
@@ -116,7 +116,7 @@ className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${
 
 ### 카드 선택 시 검색 컴포넌트 표시
 
-`ExampleComponent.tsx`에는 출발·도착 카드 아래에 검색 UI를 보여주는 `LocationSearch` 함수를 추가했다. 이 파일 안의 검색 UI와 별도 파일인 `src/components/LocationSearch.tsx`는 현재 각각 존재하며, 예제가 별도 파일을 import하는 구조로 변경하지는 않았다.
+`ExampleComponent.tsx`에는 출발·도착 카드 아래에 검색 UI를 보여주는 `LocationSearch` 함수를 추가했다. 이 파일 안의 검색 UI와 별도 파일인 `src/components/location/LocationSearch.tsx`는 현재 각각 존재하며, 예제가 별도 파일을 import하는 구조로 변경하지는 않았다.
 
 ```tsx
 {searchType && (
@@ -133,7 +133,7 @@ className={`flex h-12 w-full items-center rounded-xl border-2 px-3 text-left ${
 
 ### 별도 주소·장소 검색 카드 컴포넌트
 
-[LocationSearch.tsx](../../src/components/LocationSearch.tsx)에 실제 화면에서 사용할 검색 카드 UI를 작성했다. 출발지·도착지 제목, 입력창, 검색 버튼, 안내 문구와 입력창 선택 시 초록색 강조를 제공한다.
+[LocationSearch.tsx](../../src/components/location/LocationSearch.tsx)에 실제 화면에서 사용할 검색 카드 UI를 작성했다. 출발지·도착지 제목, 입력창, 검색 버튼, 안내 문구와 입력창 선택 시 초록색 강조를 제공한다.
 
 | props | 역할 |
 | --- | --- |
@@ -216,6 +216,95 @@ type LocationSearchProps = {
 - 검색 및 좌표의 주소 조회 제한 시간은 각각 10초다.
 - 지도 로딩이 15초 이상 지연되면 설정 확인과 새로고침을 안내한다.
 - 화면 이탈 시 이벤트 리스너, 타이머, 생성한 마커 등을 정리한다.
+
+## 합의한 컴포넌트 분리 설계
+
+`ExamplePage.tsx`에 모여 있는 기능을 역할별로 분리하고, 기존 `MainPage.tsx` 안에서 동일하게 동작하도록 연결한다. 별도 `LocationSelectPage.tsx`나 라우트는 추가하지 않는다. 출발·도착 선택부터 검색, 지도 이동, 위치 확정까지 화면 전환 없이 메인 화면에서 처리한다.
+
+### 폴더 구조
+
+```text
+src/
+├─ components/
+│  ├─ location/
+│  │  ├─ LocationCard.tsx       # 출발·도착 카드
+│  │  ├─ LocationSearch.tsx     # 검색 입력과 결과 목록
+│  │  └─ LocationConfirm.tsx    # 선택 주소 확인·취소·확정
+│  └─ KaKaoMap.tsx              # 지도·안내 문구·마커
+├─ hooks/
+│  └─ useLocationSearch.ts      # 주소·장소 검색 로직
+├─ types/
+│  └─ location.ts               # 공통 위치 데이터 타입
+├─ pages/
+│  └─ MainPage.tsx              # 전체 상태 관리와 컴포넌트 연결
+├─ examples/
+│  └─ ExamplePage.tsx           # 기존 동작 참고용 예제
+└─ App.tsx                     # 기존 라우팅
+```
+
+위 트리는 이번 설계와 관련된 파일만 표시한다. `ExampleComponent.tsx` 등 기존의 다른 파일도 유지한다.
+
+### 파일별 역할과 상태 관리
+
+| 파일 | 구현할 역할 |
+| --- | --- |
+| `MainPage.tsx` | 선택 대상, 후보 위치, 확정된 출발·도착 위치를 관리하고 자식 컴포넌트에 값과 이벤트 함수를 전달한다. |
+| `LocationCard.tsx` | 출발·도착 버튼, 선택 강조, 확정된 주소를 표시하고 선택 이벤트를 부모에 전달한다. |
+| `LocationSearch.tsx` | 검색 입력, 검색 중·실패·결과 없음 안내, 결과 목록을 표시하고 검색 및 결과 선택 이벤트를 전달한다. |
+| `LocationConfirm.tsx` | 선택 중인 출발지·도착지의 후보 주소와 조회 상태, 취소·확정 버튼을 표시한다. 후보가 유효할 때만 확정할 수 있게 한다. |
+| `KaKaoMap.tsx` | 지도를 표시하고 검색 결과 좌표로 이동한다. 지도 중심 주소 조회, 선택 대상별 안내 문구, 중앙 고정 마커, 확정 위치 마커를 담당한다. |
+| `useLocationSearch.ts` | 카카오 주소·장소 검색을 함께 실행하고 결과 병합·중복 제거, 검색 상태·안내, 시간 초과 및 오래된 응답 무효화를 처리한다. |
+| `location.ts` | 여러 파일이 공유하는 위치 관련 데이터 타입을 정의한다. |
+
+`LocationCard`, `LocationSearch`, `LocationConfirm`은 같은 위치 선택 기능이므로 `components/location`에 모은다. `KaKaoMap`은 다른 화면에서도 사용할 수 있도록 별도로 둔다.
+
+공유 상태는 `MainPage`에서 관리한다. 검색 결과·검색 중 여부·검색 안내는 `useLocationSearch`가 관리하고 필요한 값과 함수를 페이지에 반환한다. 각 컴포넌트만 사용하는 입력 상태나 props 타입은 해당 파일에 둘 수 있다.
+
+### 검색 훅과 지도 기능의 구분
+
+`useLocationSearch.ts`는 주소·장소 검색을 담당하는 커스텀 훅이다. 카카오 SDK가 준비된 뒤 검색 기능을 전달받아 실행하는 구조로 설계한다. 검색 결과에는 장소 이름, 주소, 위도·경도가 포함된다.
+
+1. `LocationSearch`에서 검색어를 입력하고 검색한다.
+2. `MainPage`가 훅의 검색 함수를 호출한다.
+3. 훅이 주소 검색과 장소 검색 결과를 합쳐 반환한다.
+4. `LocationSearch`가 결과 목록을 표시한다.
+5. 결과를 선택하면 `MainPage`가 좌표를 `KaKaoMap`에 전달한다.
+6. 지도가 해당 좌표로 이동하고 중심 주소를 조회하여 후보 위치를 갱신한다.
+
+주소는 검색 목록에 표시하고 좌표는 지도 이동에 사용한다. 지도를 직접 움직였을 때 중심 좌표를 주소로 바꾸는 처리는 검색 훅이 아닌 지도 쪽에서 담당한다. SDK 로딩은 검색과 지도가 함께 사용할 수 있도록 공통으로 관리할 예정이다. 로더의 파일 위치는 아직 확정하지 않았다.
+
+### 공통 타입의 의미
+
+`types/location.ts`는 실제 위치 값을 저장하는 파일이 아니다. 데이터의 형태를 한곳에 정의하여 여러 파일에서 같은 타입 선언을 반복하지 않도록 한다. 제안한 타입은 다음과 같으며 아직 코드로 작성하지 않았다.
+
+| 타입 | 의미 |
+| --- | --- |
+| `LocationType` | `'start'` 또는 `'end'`로 출발·도착 구분 |
+| `Location` | `latitude`, `longitude`, `address`를 가진 위치 정보 |
+| `SearchResult` | 위치 정보에 장소 이름인 `name`을 추가한 검색 결과 |
+| `SelectedLocations` | 출발·도착 각각의 확정 위치. 선택 전에는 `null` |
+
+타입 공유와 상태 공유는 다르다. `location.ts`가 데이터 형태를 정의하고, `MainPage`가 실제 후보·확정 위치 값을 상태로 보관하여 컴포넌트에 전달한다.
+
+### 메인 화면에서의 연결 흐름
+
+1. 출발·도착 카드를 누르면 해당 대상을 강조하고 검색 및 위치 확인 영역을 표시한다. 기존 확정 위치가 있으면 지도를 그 위치로 이동한다.
+2. 검색 결과를 선택하거나 지도를 직접 움직여 후보 위치를 정한다.
+3. 지도에는 “지도를 움직여 출발 위치를 선택해주세요.” 또는 “지도를 움직여 도착 위치를 선택해주세요.” 문구와 중앙 선택 마커를 표시한다.
+4. 중심 주소 조회 결과를 `LocationConfirm`에 표시한다. 이동·조회 중에는 후보를 무효화하고 확정 버튼을 비활성화한다.
+5. 확정하면 해당 출발·도착 위치를 저장하고 카드 주소와 지도 마커를 갱신한다.
+6. 취소하면 후보만 버리고 기존 확정 주소를 유지한다.
+
+### 현재 파일 정리 완료 범위
+
+사용자 요청에 따라 기능 구현에 앞서 폴더 구조와 파일별 역할 주석만 준비했다.
+
+- 기존 `LocationCard.tsx`, `LocationSearch.tsx`를 `components/location/`으로 이동하고 기존 코드를 유지했다.
+- 이동한 `LocationCard`를 사용하는 `MainPage.tsx`, `App.tsx`의 import 경로를 수정했다.
+- `LocationConfirm.tsx`, `useLocationSearch.ts`, `types/location.ts`를 생성했다. 이 세 파일에는 역할 주석만 있고 구현 코드는 없다.
+- 구조에 포함된 기존 파일의 맨 위에도 역할 주석을 추가했다. 주석은 구현할 책임을 나타내며 모든 기능이 이미 완성되었다는 뜻은 아니다.
+- `MainPage`의 공유 상태 관리, 실제 검색 연결, 지도 선택 기능, 위치 확정 기능은 아직 적용하지 않았다.
+- 대화에서 제시한 훅·타입·props 코드는 설명용 예시다. 최종 인터페이스로 구현된 상태가 아니다.
 
 ## 실행 및 확인 방법
 

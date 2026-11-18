@@ -1,3 +1,4 @@
+// 역할: 지도 표시와 이동, 중심 좌표의 주소 조회, 안내 문구와 마커 표시를 담당합니다.
 import { useEffect, useRef } from 'react';
 
 

@@ -1,3 +1,4 @@
+// 역할: 출발·도착 선택 버튼과 확정 주소를 표시합니다.
 
 // 상태 변환 후 화면을 다시 그리는 useState함수를 사용하기 위해 import
 import { useState } from 'react'

@@ -1,9 +1,10 @@
+// 역할: 앱의 화면별 라우팅을 관리합니다.
 import { Route, Routes } from 'react-router'
 
 import MainPage from './pages/MainPage'
 import ExamplePage from './examples/ExamplePage'
 import ExampleComponent from './examples/ExampleComponent'
-import LocationCard from './components/LocationCard'
+import LocationCard from './components/location/LocationCard'
 import KaKaoMap from './components/KaKaoMap'
 
 
