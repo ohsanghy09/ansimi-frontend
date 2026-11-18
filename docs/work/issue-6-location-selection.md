@@ -377,6 +377,10 @@ src/
 
 이 절이 최신 구현 상태이며 앞선 절의 준비 중·다음 단계 설명은 각 작업 당시 기록이다.
 
+### 확정된 출발·도착 주소 강조
+
+`components/location/LocationCard.tsx`에서 `locations[type]`의 존재 여부에 따라 주소 표시 스타일을 구분한다. 확정된 주소에는 `text-black`과 `font-medium`을 적용하고, 설정 전 “장소 또는 주소 검색” 안내에는 기존 `text-[#86998C]`를 유지한다. 출발지와 도착지 각각의 확정 상태에 따라 독립적으로 적용된다.
+
 ## 실행 및 확인 방법
 
 1. 프로젝트 루트의 `.env.local`에 `VITE_KAKAO_MAP_KEY`를 설정한다.
