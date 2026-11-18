@@ -4,7 +4,9 @@ import KaKaoMap from "../components/KaKaoMap"
 import { useState } from 'react'
 import LocationSearch from '../components/location/LocationSearch'
 import LocationConfirm from '../components/location/LocationConfirm'
-import type { Location, LocationType, SelectedLocations } from '../types/location'
+import type { Location, LocationType, SearchResult, SelectedLocations } from '../types/location'
+import type { KakaoMaps } from '../lib/kakaoMaps'
+import { useLocationSearch } from '../hooks/useLocationSearch'
 
 
 
@@ -14,8 +16,13 @@ function MainPage () {
     const [searchType, setSearchType] = useState<LocationType | null>(null)
     const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
     const [candidate, setCandidate] = useState<Location | null>(null)
+    const [maps, setMaps] = useState<KakaoMaps | null>(null)
+    const [mapTarget, setMapTarget] = useState<Location | null>(null)
+    const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
 
     function cancelSelection() {
+        resetSearch()
+        setMapTarget(null)
         setSearchType(null)
         setCandidate(null)
     }
@@ -27,7 +34,16 @@ function MainPage () {
         }
         // 확정 주소는 유지하고 새 후보는 다음 단계에서 지도와 연결합니다.
         setCandidate(null)
+        resetSearch()
+        setMapTarget(locations[type])
         setSearchType(type)
+    }
+
+    function selectSearchResult(result: SearchResult) {
+        if (!searchType) return
+        resetSearch()
+        setCandidate(null)
+        setMapTarget({ ...result })
     }
 
     function confirmLocation() {
@@ -63,13 +79,15 @@ function MainPage () {
             {searchType && (
                 <div className="mt-6">
                     {/* 선택 대상 변경 시 입력 상태도 초기화합니다. */}
-                    <LocationSearch key={searchType} searchType={searchType} />
+                    <LocationSearch key={searchType} searchType={searchType}
+                        results={results} searching={searching} message={message} ready={!!maps}
+                        onSearch={search} onQueryChange={resetSearch} onSelectResult={selectSearchResult} />
                 </div>
             )}
 
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
-                <KaKaoMap />
+                <KaKaoMap target={mapTarget} onReady={setMaps} />
             </div>
 
             {searchType && (
@@ -77,7 +95,7 @@ function MainPage () {
                     <LocationConfirm
                         searchType={searchType}
                         candidate={candidate}
-                        message="검색 및 지도 위치 선택 기능은 준비 중입니다."
+                        message="지도에서 선택 위치를 확인해주세요. 주소 조회 및 위치 확정 연결은 준비 중입니다."
                         onCancel={cancelSelection}
                         onConfirm={confirmLocation}
                     />
