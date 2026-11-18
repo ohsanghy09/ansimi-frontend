@@ -9,13 +9,22 @@ type SearchDocument = {
 export type SearchCallback = (results: SearchDocument[], status: string) => void
 type SearchService = {
   addressSearch(query: string, callback: SearchCallback, options: { size: number }): void
+  coord2Address(longitude: number, latitude: number, callback: (results: {
+    address?: { address_name: string }
+    road_address?: { address_name: string }
+  }[], status: string) => void): void
 }
 type LatLng = { getLat(): number; getLng(): number }
-export type MapInstance = { setCenter(position: LatLng): void }
+export type MapInstance = { getCenter(): LatLng; setCenter(position: LatLng): void }
 export type KakaoMaps = {
   load(callback: () => void): void
   LatLng: new (latitude: number, longitude: number) => LatLng
   Map: new (container: HTMLElement, options: { center: LatLng; level: number }) => MapInstance
+  Marker: new (options: { map: MapInstance; position: LatLng; title: string }) => { setMap(map: MapInstance | null): void }
+  event: {
+    addListener(map: MapInstance, name: string, callback: () => void): void
+    removeListener(map: MapInstance, name: string, callback: () => void): void
+  }
   services: {
     Status: { OK: string }
     Geocoder: new () => SearchService

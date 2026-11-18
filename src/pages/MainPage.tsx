@@ -16,6 +16,7 @@ function MainPage () {
     const [searchType, setSearchType] = useState<LocationType | null>(null)
     const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
     const [candidate, setCandidate] = useState<Location | null>(null)
+    const [candidateMessage, setCandidateMessage] = useState('')
     const [maps, setMaps] = useState<KakaoMaps | null>(null)
     const [mapTarget, setMapTarget] = useState<Location | null>(null)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
@@ -25,6 +26,7 @@ function MainPage () {
         setMapTarget(null)
         setSearchType(null)
         setCandidate(null)
+        setCandidateMessage('')
     }
 
     function selectLocation(type: LocationType) {
@@ -32,8 +34,9 @@ function MainPage () {
             cancelSelection()
             return
         }
-        // 확정 주소는 유지하고 새 후보는 다음 단계에서 지도와 연결합니다.
+        // 확정 주소는 유지하고 지도 중심의 주소를 새 후보로 조회합니다.
         setCandidate(null)
+        setCandidateMessage(maps ? '주소를 확인하고 있습니다…' : '지도를 불러온 뒤 위치를 선택해주세요.')
         resetSearch()
         setMapTarget(locations[type])
         setSearchType(type)
@@ -43,6 +46,7 @@ function MainPage () {
         if (!searchType) return
         resetSearch()
         setCandidate(null)
+        setCandidateMessage('주소를 확인하고 있습니다…')
         setMapTarget({ ...result })
     }
 
@@ -87,7 +91,9 @@ function MainPage () {
 
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
-                <KaKaoMap target={mapTarget} onReady={setMaps} />
+                <KaKaoMap target={mapTarget} onReady={setMaps}
+                    searchType={searchType} locations={locations}
+                    onCandidateChange={setCandidate} onMessageChange={setCandidateMessage} />
             </div>
 
             {searchType && (
@@ -95,7 +101,7 @@ function MainPage () {
                     <LocationConfirm
                         searchType={searchType}
                         candidate={candidate}
-                        message="지도에서 선택 위치를 확인해주세요. 주소 조회 및 위치 확정 연결은 준비 중입니다."
+                        message={candidateMessage}
                         onCancel={cancelSelection}
                         onConfirm={confirmLocation}
                     />

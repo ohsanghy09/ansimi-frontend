@@ -1,15 +1,19 @@
-// 역할: 카카오 지도를 표시하고 검색에서 선택한 좌표로 이동합니다.
+// 역할: 지도 이동과 중심 주소 조회, 선택 안내 및 후보·확정 마커를 표시합니다.
 import { useEffect, useRef, useState } from 'react'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
-import type { Location } from '../types/location'
+import type { Location, LocationType, SelectedLocations } from '../types/location'
 
 type KaKaoMapProps = {
   target?: Location | null
   onReady?: (maps: KakaoMaps) => void
+  searchType?: LocationType | null
+  locations?: SelectedLocations
+  onCandidateChange?: (location: Location | null) => void
+  onMessageChange?: (message: string) => void
 }
 
-function KaKaoMap({ target, onReady }: KaKaoMapProps) {
+function KaKaoMap({ target, onReady, searchType, locations, onCandidateChange, onMessageChange }: KaKaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapInstance | null>(null)
   const [maps, setMaps] = useState<KakaoMaps | null>(null)
@@ -39,16 +43,98 @@ function KaKaoMap({ target, onReady }: KaKaoMapProps) {
     if (maps) onReady?.(maps)
   }, [maps, onReady])
 
-  // 같은 좌표라도 새로운 검색 결과 객체를 전달하면 다시 이동합니다.
+  // 대상을 바꾸거나 검색 결과를 선택하면 이전 조회를 폐기하고 새 중심을 조회합니다.
   useEffect(() => {
-    if (!maps || !target) return
-    mapRef.current?.setCenter(new maps.LatLng(target.latitude, target.longitude))
-  }, [maps, target])
+    const map = mapRef.current
+    if (!maps || !map) return
+    if (target) map.setCenter(new maps.LatLng(target.latitude, target.longitude))
+    if (!searchType) return
+    const geocoder = new maps.services.Geocoder()
+    let active = true
+    let requestId = 0
+    let timer: number | undefined
+
+    function invalidate() {
+      requestId += 1
+      window.clearTimeout(timer)
+      onCandidateChange?.(null)
+      onMessageChange?.('지도를 움직여 위치를 맞춰주세요.')
+    }
+
+    function lookup() {
+      if (!map || !maps) return
+      const id = ++requestId
+      const center = map.getCenter()
+      window.clearTimeout(timer)
+      onCandidateChange?.(null)
+      onMessageChange?.('주소를 확인하고 있습니다…')
+      timer = window.setTimeout(() => {
+        if (!active || id !== requestId) return
+        requestId += 1
+        onMessageChange?.('주소 조회 시간이 초과되었습니다. 지도를 조금 움직여 다시 시도해주세요.')
+      }, 10000)
+      try {
+        geocoder.coord2Address(center.getLng(), center.getLat(), (results, status) => {
+          if (!active || id !== requestId) return
+          window.clearTimeout(timer)
+          const address = results[0]?.road_address?.address_name || results[0]?.address?.address_name
+          if (status !== maps.services.Status.OK || !address) {
+            onMessageChange?.('주소를 찾지 못했습니다. 다른 위치로 지도를 움직여주세요.')
+            return
+          }
+          onCandidateChange?.({ latitude: center.getLat(), longitude: center.getLng(), address })
+          onMessageChange?.('')
+        })
+      } catch {
+        window.clearTimeout(timer)
+        onMessageChange?.('주소 조회에 실패했습니다. 지도를 움직여 다시 시도해주세요.')
+      }
+    }
+
+    maps.event.addListener(map, 'center_changed', invalidate)
+    maps.event.addListener(map, 'zoom_start', invalidate)
+    maps.event.addListener(map, 'idle', lookup)
+    // 같은 좌표를 다시 선택한 경우에도 조회합니다.
+    lookup()
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+      maps.event.removeListener(map, 'center_changed', invalidate)
+      maps.event.removeListener(map, 'zoom_start', invalidate)
+      maps.event.removeListener(map, 'idle', lookup)
+    }
+  }, [maps, target, searchType, onCandidateChange, onMessageChange])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!maps || !map || !locations) return
+    const markers = (['start', 'end'] as const).flatMap((type) => {
+      const location = locations[type]
+      if (!location) return []
+      return [new maps.Marker({ map,
+        position: new maps.LatLng(location.latitude, location.longitude),
+        title: `${type === 'start' ? '출발' : '도착'}: ${location.address}`,
+      })]
+    })
+    return () => markers.forEach((marker) => marker.setMap(null))
+  }, [maps, locations])
 
   return (
-    <div className="relative overflow-hidden rounded-lg border-2 border-gray-300">
+    <div className="relative isolate overflow-hidden rounded-lg border-2 border-gray-300">
       <div ref={containerRef} aria-label="위치 선택 지도" className="h-[50dvh] w-full" />
-      {!maps && <p role="status" className="absolute inset-0 flex items-center justify-center bg-[#EEF2E9] p-6 text-center text-sm text-[#183B36]">{error || '지도를 불러오고 있습니다…'}</p>}
+      {!maps && <p role="status" className="absolute inset-0 z-10 flex items-center justify-center bg-[#EEF2E9] p-6 text-center text-sm text-[#183B36]">{error || '지도를 불러오고 있습니다…'}</p>}
+      {maps && searchType && <>
+        <p className="pointer-events-none absolute inset-x-3 top-3 z-10 rounded-xl bg-white/95 p-3 text-center text-sm font-semibold text-[#183B36] shadow">
+          지도를 움직여 {searchType === 'start' ? '출발' : '도착'} 위치를 선택해주세요.
+        </p>
+        {/* 마커 끝은 지도 중심에 고정하고 지도만 움직입니다. */}
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full">
+          <svg width="40" height="48" viewBox="0 0 40 48" className="drop-shadow-lg">
+            <path d="M20 47C16 40 2 27 2 19a18 18 0 1 1 36 0c0 8-14 21-18 28Z" fill={searchType === 'start' ? '#25A77A' : '#183B36'} stroke="white" strokeWidth="2" />
+            <circle cx="20" cy="19" r="6" fill="white" />
+          </svg>
+        </div>
+      </>}
     </div>
   )
 }
