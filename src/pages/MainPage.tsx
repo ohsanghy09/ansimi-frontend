@@ -1,15 +1,66 @@
-import LocationCard from "../components/LocationCard"
+// 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
+import LocationCard from "../components/location/LocationCard"
 import KaKaoMap from "../components/KaKaoMap"
+import { useState } from 'react'
+import LocationSearch from '../components/location/LocationSearch'
+import LocationConfirm from '../components/location/LocationConfirm'
+import type { Location, LocationType, SearchResult, SelectedLocations } from '../types/location'
+import type { KakaoMaps } from '../lib/kakaoMaps'
+import { useLocationSearch } from '../hooks/useLocationSearch'
 
 
 
 
 function MainPage () {
+    // 여러 컴포넌트가 공유하는 선택 상태는 부모 페이지에서 관리합니다.
+    const [searchType, setSearchType] = useState<LocationType | null>(null)
+    const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
+    const [candidate, setCandidate] = useState<Location | null>(null)
+    const [candidateMessage, setCandidateMessage] = useState('')
+    const [maps, setMaps] = useState<KakaoMaps | null>(null)
+    const [mapTarget, setMapTarget] = useState<Location | null>(null)
+    const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
+
+    function cancelSelection() {
+        resetSearch()
+        setMapTarget(null)
+        setSearchType(null)
+        setCandidate(null)
+        setCandidateMessage('')
+    }
+
+    function selectLocation(type: LocationType) {
+        if (searchType === type) {
+            cancelSelection()
+            return
+        }
+        // 확정 주소는 유지하고 지도 중심의 주소를 새 후보로 조회합니다.
+        setCandidate(null)
+        setCandidateMessage(maps ? '주소를 확인하고 있습니다…' : '지도를 불러온 뒤 위치를 선택해주세요.')
+        resetSearch()
+        setMapTarget(locations[type])
+        setSearchType(type)
+    }
+
+    function selectSearchResult(result: SearchResult) {
+        if (!searchType) return
+        resetSearch()
+        setCandidate(null)
+        setCandidateMessage('주소를 확인하고 있습니다…')
+        setMapTarget({ ...result })
+    }
+
+    function confirmLocation() {
+        if (!searchType || !candidate) return
+        setLocations((previous) => ({ ...previous, [searchType]: candidate }))
+        cancelSelection()
+    }
 
     return (
 
-        // `메인 태그` 요소의 최소 높이를 화면 높이와 맞춰야함. min-h-screen
-        <main className='min-h-screen bg-[#EEF2E9] p-8'>
+        // 배경은 화면을 채우고 콘텐츠는 패딩을 포함해 최대 480px로 가운데 정렬합니다.
+        <main className='min-h-dvh bg-[#EEF2E9]'>
+            <div className="mx-auto w-full max-w-[480px] px-4 py-6 sm:px-6">
             
 
             <header className="mb-6">
@@ -28,12 +79,35 @@ function MainPage () {
 
 
             {/* 화면 상단 카드 컴포넌트*/}
-            <LocationCard />
+            <LocationCard searchType={searchType} locations={locations} onSelect={selectLocation} />
+
+            {searchType && (
+                <div className="mt-6">
+                    {/* 선택 대상 변경 시 입력 상태도 초기화합니다. */}
+                    <LocationSearch key={searchType} searchType={searchType}
+                        results={results} searching={searching} message={message} ready={!!maps}
+                        onSearch={search} onQueryChange={resetSearch} onSelectResult={selectSearchResult} />
+                </div>
+            )}
 
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
-                <KaKaoMap />
+                <KaKaoMap target={mapTarget} onReady={setMaps}
+                    searchType={searchType} locations={locations}
+                    onCandidateChange={setCandidate} onMessageChange={setCandidateMessage} />
             </div>
+
+            {searchType && (
+                <div className="mt-6">
+                    <LocationConfirm
+                        searchType={searchType}
+                        candidate={candidate}
+                        message={candidateMessage}
+                        onCancel={cancelSelection}
+                        onConfirm={confirmLocation}
+                    />
+                </div>
+            )}
 
             {/* 우측 하단 문구 */}
             <footer className="mt-6 text-right">
@@ -41,6 +115,7 @@ function MainPage () {
                     집으로 향하는 길, 마음은 가볍게.
                 </p>
             </footer>
+            </div>
         </main>
 
 
