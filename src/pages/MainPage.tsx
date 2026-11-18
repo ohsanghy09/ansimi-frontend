@@ -58,8 +58,9 @@ function MainPage () {
 
     return (
 
-        // `메인 태그` 요소의 최소 높이를 화면 높이와 맞춰야함. min-h-screen
-        <main className='min-h-screen bg-[#EEF2E9] p-8'>
+        // 배경은 화면을 채우고 콘텐츠는 패딩을 포함해 최대 480px로 가운데 정렬합니다.
+        <main className='min-h-dvh bg-[#EEF2E9]'>
+            <div className="mx-auto w-full max-w-[480px] px-4 py-6 sm:px-6">
             
 
             <header className="mb-6">
@@ -114,6 +115,7 @@ function MainPage () {
                     집으로 향하는 길, 마음은 가볍게.
                 </p>
             </footer>
+            </div>
         </main>
 
 
