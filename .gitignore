@@ -13,6 +13,7 @@ dist-ssr
 
 
 # 로컬 .env.local 환경 파일은 git에 포함시키지 않음
+.env
 *.local 
 
 # Editor directories and files
