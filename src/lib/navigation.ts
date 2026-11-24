@@ -12,7 +12,7 @@ export type Progress = {
   segment: number
 }
 
-function metersBetween(a: Coordinate, b: Coordinate): [number, number] {
+export function metersBetween(a: Coordinate, b: Coordinate): [number, number] {
   const latitude = (a[1] + b[1]) / 2 * Math.PI / 180
   return [(b[0] - a[0]) * Math.cos(latitude) * 111195, (b[1] - a[1]) * 111195]
 }
