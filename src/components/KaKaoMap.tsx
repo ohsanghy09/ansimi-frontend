@@ -5,6 +5,7 @@ import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import type { Location, LocationType, SelectedLocations } from '../types/location'
 import { riskStyles } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
+import currentLocationIcon from '../assets/icons/current-location.svg'
 
 type KaKaoMapProps = {
   target?: Location | null
@@ -14,11 +15,12 @@ type KaKaoMapProps = {
   serviceArea?: ServiceArea | null
   showPilotArea?: boolean
   route?: RecommendedRoute | null
+  currentPosition?: Location
   onCandidateChange?: (location: Location | null) => void
   onMessageChange?: (message: string) => void
 }
 
-function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPilotArea, route, onCandidateChange, onMessageChange }: KaKaoMapProps) {
+function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPilotArea, route, currentPosition, onCandidateChange, onMessageChange }: KaKaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapInstance | null>(null)
   const [maps, setMaps] = useState<KakaoMaps | null>(null)
@@ -124,6 +126,17 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
     })
     return () => markers.forEach((marker) => marker.setMap(null))
   }, [maps, locations])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!maps || !map || !currentPosition) return
+    const marker = new maps.Marker({ map,
+      position: new maps.LatLng(currentPosition.latitude, currentPosition.longitude),
+      image: new maps.MarkerImage(currentLocationIcon, new maps.Size(36, 36), { offset: new maps.Point(18, 18) }),
+      title: '현재 위치', zIndex: 3,
+    })
+    return () => marker.setMap(null)
+  }, [maps, currentPosition])
 
   useEffect(() => {
     const map = mapRef.current
