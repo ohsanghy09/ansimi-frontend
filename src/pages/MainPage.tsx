@@ -1,8 +1,6 @@
 // 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
 import LocationCard from "../components/location/LocationCard"
 import FacilityDetails from '../components/FacilityDetails'
-import { facilityExamples } from '../lib/facilities'
-import type { Facility } from '../lib/facilities'
 import KaKaoMap from "../components/KaKaoMap"
 import { useCallback, useEffect, useRef, useState } from 'react'
 import LocationSearch from '../components/location/LocationSearch'
@@ -10,6 +8,7 @@ import LocationConfirm from '../components/location/LocationConfirm'
 import type { Location, LocationType, SearchResult, SelectedLocations } from '../types/location'
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import { useLocationSearch } from '../hooks/useLocationSearch'
+import { useRouteFacilities } from '../hooks/useRouteFacilities'
 import { getServiceArea, recommendRoute, riskStyles, routeExample, withinServiceArea } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 import HomeGuide from '../components/HomeGuide'
@@ -23,7 +22,6 @@ import type { StoredGuide } from '../lib/guideStorage'
 function MainPage () {
     // 여러 컴포넌트가 공유하는 선택 상태는 부모 페이지에서 관리합니다.
     const [searchType, setSearchType] = useState<LocationType | null>(null)
-    const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
     const [facilityMap, setFacilityMap] = useState<MapInstance | null>(null)
     const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
     const [candidate, setCandidate] = useState<Location | null>(null)
@@ -46,9 +44,10 @@ function MainPage () {
     const [storageMessage, setStorageMessage] = useState('')
     const guideId = useRef<string | null>(null)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
+    const facilityPanel = useRouteFacilities(maps, route)
     const handleMapReady = useCallback((sdk: KakaoMaps, map: MapInstance) => {
         setMaps(sdk)
-        if (facilityExamples) setFacilityMap(map)
+        setFacilityMap(map)
     }, [])
 
     useEffect(() => {
@@ -174,6 +173,7 @@ function MainPage () {
         setResumable(null)
         setStorageMessage(saveGuide({ id, savedAt: Date.now(), start, end, route }, true) ? ''
             : '이 기기에는 귀가 상태를 저장할 수 없습니다.')
+        setFacilityMap(null)
         setGuiding(true)
     }
 
@@ -192,6 +192,7 @@ function MainPage () {
         setStorageMessage('')
         setLocations({ start: stored.start, end: stored.end })
         setRoute(stored.route)
+        setFacilityMap(null)
         setGuiding(true)
     }
 
@@ -204,7 +205,7 @@ function MainPage () {
     }
 
     if (guiding && route) {
-        return <HomeGuide route={route} locations={locations} serviceArea={area}
+        return <HomeGuide route={route} locations={locations} serviceArea={area} facilityPanel={facilityPanel} onMapReady={setMaps}
             storageMessage={storageMessage} onEnd={() => finishGuide(false)}
             onArrive={() => finishGuide(true)}
             onRouteChange={(result, start) => {
@@ -290,8 +291,9 @@ function MainPage () {
                 </p>}
             </div>
 
-            {!searchType && facilityExamples && <FacilityDetails facilities={facilityExamples} maps={maps} map={facilityMap}
-                selected={selectedFacility} onSelect={setSelectedFacility} />}
+            {!searchType && facilityPanel.visible && <div className="mt-4">
+                <FacilityDetails panel={facilityPanel} maps={maps} map={facilityMap} />
+            </div>}
 
             {searchType && (
                 <div className="mt-6">

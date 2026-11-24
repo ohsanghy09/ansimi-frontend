@@ -7,6 +7,8 @@ type SearchDocument = {
   place_name?: string
 }
 export type SearchCallback = (results: SearchDocument[], status: string) => void
+export type PlaceDocument = SearchDocument & { id: string; place_name: string }
+type PlacePagination = { hasNextPage: boolean; totalCount: number }
 type SearchService = {
   addressSearch(query: string, callback: SearchCallback, options: { size: number }): void
   coord2Address(longitude: number, latitude: number, callback: (results: {
@@ -37,7 +39,7 @@ export type KakaoMaps = {
   Point: new (x: number, y: number) => object
   Map: new (container: HTMLElement, options: { center: LatLng; level: number }) => MapInstance
   MarkerImage: new (src: string, size: object, options: { offset: object }) => object
-  Marker: new (options: { map: MapInstance; position: LatLng; title: string; image?: object; zIndex?: number }) => Overlay
+  Marker: new (options: { map: MapInstance; position: LatLng; title: string; image?: object; zIndex?: number; clickable?: boolean }) => Overlay
   Polygon: new (options: ShapeOptions & { path: LatLng[][]; fillColor: string; fillOpacity: number }) => Overlay
   Polyline: new (options: ShapeOptions & { path: LatLng[] }) => Overlay
   event: {
@@ -45,10 +47,12 @@ export type KakaoMaps = {
     removeListener(target: MapInstance | Overlay, name: string, callback: () => void): void
   }
   services: {
-    Status: { OK: string }
+    Status: { OK: string; ZERO_RESULT: string }
     Geocoder: new () => SearchService
     Places: new () => {
       keywordSearch(query: string, callback: SearchCallback, options: { size: number }): void
+      categorySearch(code: string, callback: (results: PlaceDocument[], status: string, pagination?: PlacePagination) => void,
+        options: { location: LatLng; radius: number; size: number; page: number; sort: 'distance' }): void
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCurrentPosition } from '../hooks/useCurrentPosition'
 import type { PositionFix } from '../hooks/useCurrentPosition'
 import { FIX_MAX_AGE_MS, isRouteArrival, MAX_ACCURACY_M, measureNavigation, projectPosition } from '../lib/navigation'
@@ -7,22 +7,32 @@ import { recommendRoute } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 import type { Location, SelectedLocations } from '../types/location'
 import KaKaoMap from './KaKaoMap'
+import FacilityDetails from './FacilityDetails'
+import type { FacilityPanel } from './FacilityDetails'
+import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 
 type HomeGuideProps = {
   route: RecommendedRoute
   locations: SelectedLocations
   serviceArea: ServiceArea | null
+  facilityPanel: FacilityPanel
+  onMapReady: (maps: KakaoMaps) => void
   storageMessage: string
   onEnd: () => void
   onArrive: () => void
   onRouteChange: (route: RecommendedRoute, start: Location) => void
 }
 
-export default function HomeGuide({ route, locations, serviceArea, storageMessage, onEnd, onArrive, onRouteChange }: HomeGuideProps) {
+export default function HomeGuide({ route, locations, serviceArea, facilityPanel, onMapReady, storageMessage, onEnd, onArrive, onRouteChange }: HomeGuideProps) {
   const [target, setTarget] = useState<Location | null>(null)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [rerouting, setRerouting] = useState(false)
   const [rerouteError, setRerouteError] = useState(false)
+  const [facilityMap, setFacilityMap] = useState<{ maps: KakaoMaps; map: MapInstance } | null>(null)
+  const handleMapReady = useCallback((maps: KakaoMaps, map: MapInstance) => {
+    setFacilityMap({ maps, map })
+    onMapReady(maps)
+  }, [onMapReady])
   const previous = useRef<{ route: RecommendedRoute; fix: PositionFix; progress: Progress } | undefined>(undefined)
   const missedFixes = useRef(0)
   const arrivalFixes = useRef(0)
@@ -110,7 +120,7 @@ export default function HomeGuide({ route, locations, serviceArea, storageMessag
           <button type="button" onClick={onEnd} className="shrink-0 rounded-lg bg-[#EEF2E9] px-3 py-2 text-sm font-semibold">안내 종료</button>
         </header>
         {storageMessage && <p role="status" className="text-sm text-[#426459]">{storageMessage}</p>}
-        <KaKaoMap target={target} locations={locations} currentPosition={fix?.location} serviceArea={serviceArea} showPilotArea route={route} />
+        <KaKaoMap target={target} locations={locations} currentPosition={fix?.location} serviceArea={serviceArea} showPilotArea route={route} onReady={handleMapReady} />
         <div className="rounded-2xl bg-white p-4">
           <p className="text-sm font-semibold">전체 {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
           {error ? <div className="mt-2 space-y-2">
@@ -136,6 +146,7 @@ export default function HomeGuide({ route, locations, serviceArea, storageMessag
           {fix && !error && <button type="button" className="mt-3 rounded-lg bg-[#EEF2E9] px-3 py-2 text-sm font-semibold"
             onClick={() => setTarget({ ...fix.location })}>현재 위치로 이동</button>}
         </div>
+        {!rerouting && facilityPanel.visible && facilityMap && <FacilityDetails panel={facilityPanel} {...facilityMap} />}
       </div>
     </div>
   )

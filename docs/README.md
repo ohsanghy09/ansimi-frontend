@@ -51,7 +51,7 @@ AI 파이프라인은 안전시설과 위험 요인을 집계해 `risk_grid.geoj
 
 현재 Swagger에는 안전시설 위치, 원본 범죄주의구간, 경로 밖 위험 격자에 대한 별도 조회 API가 없다. 이 데이터를 지도에 표시하려면 백엔드와 조회 범위 및 응답 형식을 합의한다. 시설 좌표는 `Marker`, 선형 구간은 `Polyline`, 면형 격자는 `Polygon`으로 표시할 수 있다. [카카오맵 도형 예제](https://apis.map.kakao.com/web/sample/drawShape/)
 
-로컬 개발 서버에서 `/?routeExample=1&facilityExample=1`로 열면 강남역과 역삼역 주변의 예시 편의점·병원·가게 마커를 추천 경로와 함께 확인할 수 있다. 마커나 목록에서 시설을 선택하면 상세 정보가 열린다. 예시 시설은 개발 모드에서 표시한다.
+추천 경로가 표시되면 카카오 지도 SDK로 편의점·병원·약국을 조회하고, 지도에 표시된 경로 선에서 100m 이내의 장소를 마커로 그린다. 마커나 목록을 선택하면 상세 정보가 열린다. 로컬 개발 서버에서 `/?routeExample=1`로 예시 경로와 실제 카카오 장소 검색을 함께 시험할 수 있다. `&facilityExample=1`을 추가하면 예시 시설을 표시한다. [카카오 장소 카테고리 검색](https://apis.map.kakao.com/web/documentation/#services_Places_categorySearch)
 
 ## 기획 및 개발 가이드
 
