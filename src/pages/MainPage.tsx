@@ -1,11 +1,14 @@
 // 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
 import LocationCard from "../components/location/LocationCard"
+import FacilityDetails from '../components/FacilityDetails'
+import { facilityExamples } from '../lib/facilities'
+import type { Facility } from '../lib/facilities'
 import KaKaoMap from "../components/KaKaoMap"
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import LocationSearch from '../components/location/LocationSearch'
 import LocationConfirm from '../components/location/LocationConfirm'
 import type { Location, LocationType, SearchResult, SelectedLocations } from '../types/location'
-import type { KakaoMaps } from '../lib/kakaoMaps'
+import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import { useLocationSearch } from '../hooks/useLocationSearch'
 import { getServiceArea, recommendRoute, riskStyles, routeExample, withinServiceArea } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
@@ -20,6 +23,8 @@ import type { StoredGuide } from '../lib/guideStorage'
 function MainPage () {
     // 여러 컴포넌트가 공유하는 선택 상태는 부모 페이지에서 관리합니다.
     const [searchType, setSearchType] = useState<LocationType | null>(null)
+    const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
+    const [facilityMap, setFacilityMap] = useState<MapInstance | null>(null)
     const [locations, setLocations] = useState<SelectedLocations>({ start: null, end: null })
     const [candidate, setCandidate] = useState<Location | null>(null)
     const [candidateMessage, setCandidateMessage] = useState('')
@@ -41,6 +46,10 @@ function MainPage () {
     const [storageMessage, setStorageMessage] = useState('')
     const guideId = useRef<string | null>(null)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
+    const handleMapReady = useCallback((sdk: KakaoMaps, map: MapInstance) => {
+        setMaps(sdk)
+        if (facilityExamples) setFacilityMap(map)
+    }, [])
 
     useEffect(() => {
         const controller = new AbortController()
@@ -265,7 +274,7 @@ function MainPage () {
 
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
-                <KaKaoMap target={mapTarget} onReady={setMaps}
+                <KaKaoMap target={mapTarget} onReady={handleMapReady}
                     searchType={searchType} locations={locations} showPilotArea serviceArea={area} route={route}
                     onCandidateChange={setCandidate} onMessageChange={setCandidateMessage} />
                 {area && maps && <p className="mt-2 flex items-center gap-2 text-xs font-medium text-[#244569]">
@@ -280,6 +289,9 @@ function MainPage () {
                     }}>다시 불러오기</button>
                 </p>}
             </div>
+
+            {!searchType && facilityExamples && <FacilityDetails facilities={facilityExamples} maps={maps} map={facilityMap}
+                selected={selectedFacility} onSelect={setSelectedFacility} />}
 
             {searchType && (
                 <div className="mt-6">

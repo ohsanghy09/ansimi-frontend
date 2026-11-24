@@ -41,8 +41,8 @@ export type KakaoMaps = {
   Polygon: new (options: ShapeOptions & { path: LatLng[][]; fillColor: string; fillOpacity: number }) => Overlay
   Polyline: new (options: ShapeOptions & { path: LatLng[] }) => Overlay
   event: {
-    addListener(map: MapInstance, name: string, callback: () => void): void
-    removeListener(map: MapInstance, name: string, callback: () => void): void
+    addListener(target: MapInstance | Overlay, name: string, callback: () => void): void
+    removeListener(target: MapInstance | Overlay, name: string, callback: () => void): void
   }
   services: {
     Status: { OK: string }

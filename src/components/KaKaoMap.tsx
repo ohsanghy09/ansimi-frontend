@@ -9,7 +9,7 @@ import currentLocationIcon from '../assets/icons/current-location.svg'
 
 type KaKaoMapProps = {
   target?: Location | null
-  onReady?: (maps: KakaoMaps) => void
+  onReady?: (maps: KakaoMaps, map: MapInstance) => void
   searchType?: LocationType | null
   locations?: SelectedLocations
   serviceArea?: ServiceArea | null
@@ -48,7 +48,7 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
   }, [showPilotArea])
 
   useEffect(() => {
-    if (maps) onReady?.(maps)
+    if (maps && mapRef.current) onReady?.(maps, mapRef.current)
   }, [maps, onReady])
 
   // 대상을 바꾸거나 검색 결과를 선택하면 이전 조회를 폐기하고 새 중심을 조회합니다.
@@ -166,6 +166,7 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
     map.setBounds(bounds, 32, 32, 32, 32)
     return () => lines.forEach((line) => line.setMap(null))
   }, [maps, route])
+
 
   function fitArea() {
     const map = mapRef.current
