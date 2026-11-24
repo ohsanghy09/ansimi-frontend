@@ -152,13 +152,16 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
 
   useEffect(() => {
     const map = mapRef.current
-    if (!maps || !map || !route?.lines.length) return
+    if (!maps || !map || !route) return
     const bounds = new maps.LatLngBounds()
-    const lines = route.lines.map(({ level, path }) => {
+    const paths = route.lines.length ? route.lines.map(({ level, path }) => ({ path, color: riskStyles[level].color }))
+      : route.navigation ? [{ path: route.navigation.path, color: '#315981' }] : []
+    if (!paths.length) return
+    const lines = paths.map(({ path, color }) => {
       const points = path.map(([lng, lat]) => new maps.LatLng(lat, lng))
       points.forEach((point) => bounds.extend(point))
       return new maps.Polyline({ map, path: points, strokeWeight: 6,
-        strokeColor: riskStyles[level].color, strokeOpacity: 0.95, zIndex: 2 })
+        strokeColor: color, strokeOpacity: 0.95, zIndex: 2 })
     })
     map.setBounds(bounds, 32, 32, 32, 32)
     return () => lines.forEach((line) => line.setMap(null))

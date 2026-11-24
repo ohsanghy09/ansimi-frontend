@@ -34,6 +34,7 @@ function MainPage () {
     const [locating, setLocating] = useState(false)
     const [positionMessage, setPositionMessage] = useState('')
     const [guiding, setGuiding] = useState(false)
+    const [arrived, setArrived] = useState(false)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
 
     useEffect(() => {
@@ -53,6 +54,7 @@ function MainPage () {
         routeRequest.current?.abort()
         routeRequest.current = null
         setRoute(null)
+        setArrived(false)
         setRouteError('')
         setLoadingRoute(false)
     }
@@ -151,7 +153,13 @@ function MainPage () {
     }
 
     if (guiding && route) {
-        return <HomeGuide route={route} locations={locations} serviceArea={area} onEnd={() => setGuiding(false)} />
+        return <HomeGuide route={route} locations={locations} serviceArea={area}
+            onEnd={() => setGuiding(false)}
+            onArrive={() => { setGuiding(false); setArrived(true) }}
+            onRouteChange={(result, start) => {
+                setRoute(result)
+                setLocations((previous) => ({ ...previous, start }))
+            }} />
     }
 
     return (
@@ -227,6 +235,7 @@ function MainPage () {
             )}
 
             {!searchType && <section aria-label="추천 경로" className="mt-5 space-y-3">
+                {arrived && <p role="status" className="rounded-xl bg-white p-4 font-semibold text-[#183B36]">목적지에 도착했습니다.</p>}
                 {routeExample && <p className="text-sm font-semibold text-[#825900]">개발용 예시 경로</p>}
                 {routeError && <p role="alert" className="rounded-xl bg-white p-3 text-sm text-[#9d3037]">{routeError}</p>}
                 {route && <div role="status" className="rounded-xl bg-white p-4 text-[#183B36]">
@@ -241,7 +250,7 @@ function MainPage () {
                     onClick={findRoute} className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
                 </button>
-                {route && route.lines.length > 0 && <button type="button" disabled={locating} onClick={() => setGuiding(true)}
+                {!arrived && route && (route.lines.length > 0 || route.navigation) && <button type="button" disabled={locating} onClick={() => setGuiding(true)}
                     className="w-full rounded-xl bg-[#167553] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     귀가 시작
                 </button>}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import type { Location } from '../types/location'
 
 export type PositionFix = { location: Location; accuracy: number; timestamp: number }
@@ -19,27 +19,44 @@ export function positionError(error: GeolocationPositionError) {
 
 export const positionOptions: PositionOptions = { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
 
-export function useCurrentPosition() {
+export function useCurrentPosition(onFix: (fix: PositionFix | null) => void, maxAge: number) {
   const [fix, setFix] = useState<PositionFix | null>(null)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const receiveFix = useEffectEvent(onFix)
 
   useEffect(() => {
     const geolocation = navigator.geolocation
     if (!geolocation) return
     let active = true
+    let timeout: number | undefined
+    let latestTimestamp = 0
+    function clearFix() {
+      setFix(null)
+      receiveFix(null)
+    }
     const subscription = geolocation.watchPosition((position) => {
       if (!active) return
+      if (position.timestamp <= latestTimestamp || Date.now() - position.timestamp >= maxAge) return
+      latestTimestamp = position.timestamp
+      window.clearTimeout(timeout)
       setError('')
-      setFix(toPositionFix(position))
+      const fix = toPositionFix(position)
+      setFix(fix)
+      receiveFix(fix)
+      timeout = window.setTimeout(clearFix, Math.max(0, maxAge - (Date.now() - position.timestamp)))
     }, (reason) => {
-      if (active) setError(positionError(reason))
+      if (!active) return
+      window.clearTimeout(timeout)
+      clearFix()
+      setError(positionError(reason))
     }, positionOptions)
     return () => {
       active = false
+      window.clearTimeout(timeout)
       geolocation.clearWatch(subscription)
     }
-  }, [attempt])
+  }, [attempt, maxAge])
 
   function retry() {
     setError('')

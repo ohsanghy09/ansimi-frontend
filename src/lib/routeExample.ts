@@ -24,7 +24,11 @@ export async function exampleRecommendation(origin: Coordinate, destination: Coo
   ]
   return {
     modelVersion: 'development', recommendedIndex: 2,
-    candidates: [{ index: 2, distanceM: 920, durationMin: 12, segments: {
+    candidates: [{ index: 2, distanceM: 920, durationMin: 12,
+      navigation: {
+        path: [point(0), point(1 / 3), point(2 / 3), point(1)],
+        steps: [{ pathIndex: 1, instruction: '다음 안내 지점까지 직진하세요.' }, { pathIndex: 3, instruction: '목적지 방향으로 이동하세요.' }],
+      }, segments: {
       type: 'FeatureCollection',
       features: (['GREEN', 'YELLOW', 'RED'] as RiskLevel[]).map((level, index) => ({
         type: 'Feature', properties: { level, lengthM: 300 },

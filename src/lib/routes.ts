@@ -11,7 +11,8 @@ export const riskStyles = {
 
 export type RiskLevel = keyof typeof riskStyles
 export type RouteLine = { level: RiskLevel; path: Coordinate[] }
-export type RecommendedRoute = { distanceM: number; durationMin: number; lines: RouteLine[] }
+export type Navigation = { path: Coordinate[]; steps: { pathIndex: number; instruction: string }[] }
+export type RecommendedRoute = { distanceM: number; durationMin: number; lines: RouteLine[]; navigation?: Navigation }
 
 const backend = 'https://ansimi-backend-production.up.railway.app'
 
@@ -38,6 +39,24 @@ function isPolygon(value: unknown): value is Coordinate[][] {
 
 function isRiskLevel(value: unknown): value is RiskLevel {
   return value === 'GREEN' || value === 'YELLOW' || value === 'RED'
+}
+
+function parseNavigation(value: unknown): Navigation | undefined {
+  const navigation = record(value)
+  const path = navigation?.path
+  if (!isPath(path, 2)) return undefined
+  const steps: Navigation['steps'] = []
+  if (Array.isArray(navigation?.steps)) {
+    for (const value of navigation.steps) {
+      const step = record(value)
+      const pathIndex = step?.pathIndex
+      if (typeof pathIndex === 'number' && Number.isInteger(pathIndex) && pathIndex >= 0 && pathIndex < path.length
+        && typeof step?.instruction === 'string' && step.instruction.trim()) {
+        steps.push({ pathIndex, instruction: step.instruction })
+      }
+    }
+  }
+  return { path, steps: steps.sort((a, b) => a.pathIndex - b.pathIndex) }
 }
 
 function parseRecommendation(value: unknown): RecommendedRoute {
@@ -70,7 +89,7 @@ function parseRecommendation(value: unknown): RecommendedRoute {
       paths.forEach((path) => lines.push({ level, path }))
     }
   }
-  return { distanceM, durationMin, lines }
+  return { distanceM, durationMin, lines, navigation: parseNavigation(candidate.navigation) }
 }
 
 export async function getServiceArea(signal: AbortSignal): Promise<ServiceArea> {
