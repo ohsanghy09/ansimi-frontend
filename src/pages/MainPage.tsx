@@ -224,7 +224,11 @@ function MainPage () {
             
 
             <header className="mb-4">
-                <h1 className="text-2xl font-semibold text-[#183B36]">귀가 경로 찾기</h1>
+                <p className="text-xs font-medium tracking-widest text-[#55786A]">당신의 일상에 안심을</p>
+                <h1 className="mt-2 text-2xl font-semibold leading-snug text-[#183B36]">
+                    오늘의 귀갓길, <br />
+                    어디로 향하시나요?
+                </h1>
             </header>
 
             {resumable && <section aria-label="귀가 안내 복원" className="mb-5 space-y-3 rounded-2xl bg-white p-4 text-[#183B36]">
