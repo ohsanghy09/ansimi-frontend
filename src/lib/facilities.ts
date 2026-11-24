@@ -1,7 +1,6 @@
-import convenienceStoreIcon from '../assets/icons/convenience-store-marker.svg'
-import hospitalIcon from '../assets/icons/hospital-marker.svg'
-import pharmacyIcon from '../assets/icons/pharmacy-marker.svg'
-import storeIcon from '../assets/icons/store-marker.svg'
+import convenienceStoreIcon from '../assets/icons/route-facilities/convenience-store.svg'
+import hospitalIcon from '../assets/icons/route-facilities/hospital.svg'
+import pharmacyIcon from '../assets/icons/route-facilities/pharmacy.svg'
 import { distanceBetween, metersBetween } from './navigation'
 import type { Coordinate, RecommendedRoute } from './routes'
 import type { KakaoMaps, PlaceDocument } from './kakaoMaps'
@@ -10,15 +9,17 @@ export const facilityTypes = {
   CONVENIENCE_STORE: { label: '편의점', icon: convenienceStoreIcon },
   HOSPITAL: { label: '병원', icon: hospitalIcon },
   PHARMACY: { label: '약국', icon: pharmacyIcon },
-  STORE: { label: '가게', icon: storeIcon },
 }
+
+export type FacilityType = keyof typeof facilityTypes
 
 export type Facility = {
   id: string
   name: string
-  type: keyof typeof facilityTypes
+  type: FacilityType
   coordinate: Coordinate
   address?: string
+  distanceM?: number
 }
 
 export type FacilitySearch = { facilities: Facility[]; incomplete: boolean; successful: boolean }
@@ -73,7 +74,7 @@ export async function searchRouteFacilities(maps: KakaoMaps, route: RecommendedR
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(18000)])
 
   const batches = await Promise.all(categories.map(async ([type, code]) => {
-    const byId = new Map<string, { facility: Facility; distance: number }>()
+    const byId = new Map<string, Facility & { distanceM: number }>()
     let incomplete = false
     let successful = false
     try {
@@ -89,10 +90,10 @@ export async function searchRouteFacilities(maps: KakaoMaps, route: RecommendedR
               if (!place.id || !place.place_name || byId.has(place.id) || !place.x.trim() || !place.y.trim()) continue
               const coordinate: Coordinate = [Number(place.x), Number(place.y)]
               if (!(Math.abs(coordinate[0]) <= 180 && Math.abs(coordinate[1]) <= 90)) continue
-              const distance = distanceToRoute(coordinate, segments)
-              if (distance > FACILITY_DISTANCE_M) continue
-              byId.set(place.id, { distance, facility: { id: place.id, name: place.place_name, type, coordinate,
-                address: place.road_address_name || place.address_name } })
+              const distanceM = distanceToRoute(coordinate, segments)
+              if (distanceM > FACILITY_DISTANCE_M) continue
+              byId.set(place.id, { id: place.id, name: place.place_name, type, coordinate, distanceM,
+                address: place.road_address_name || place.address_name })
             }
             if (result.truncated) incomplete = true
             if (!result.hasNextPage) break
@@ -109,7 +110,7 @@ export async function searchRouteFacilities(maps: KakaoMaps, route: RecommendedR
   }))
   signal.throwIfAborted()
   const facilities = new Map<string, Facility>()
-  for (const { facility } of batches.flatMap(({ results }) => results).sort((a, b) => a.distance - b.distance)) {
+  for (const facility of batches.flatMap(({ results }) => results).sort((a, b) => a.distanceM - b.distanceM)) {
     if (!facilities.has(facility.id)) facilities.set(facility.id, facility)
   }
   return { facilities: [...facilities.values()], incomplete: batches.some((batch) => batch.incomplete),
@@ -145,7 +146,7 @@ function searchPage(
 const examples: Facility[] = [
   { id: 'example-convenience', name: '시범 편의점', type: 'CONVENIENCE_STORE', coordinate: [127.0294, 37.4988] },
   { id: 'example-hospital', name: '시범 병원', type: 'HOSPITAL', coordinate: [127.0332, 37.5002] },
-  { id: 'example-store', name: '시범 가게', type: 'STORE', coordinate: [127.0375, 37.5014] },
+  { id: 'example-pharmacy', name: '시범 약국', type: 'PHARMACY', coordinate: [127.0375, 37.5014] },
 ]
 
 export const facilityExamples = import.meta.env.DEV && typeof window !== 'undefined'

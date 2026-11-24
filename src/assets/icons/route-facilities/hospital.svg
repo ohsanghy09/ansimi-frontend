@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
+  <title>병원</title>
+  <circle cx="17" cy="17" r="15" fill="#ebf4ff" stroke="#245ba3" stroke-width="2"/>
+  <path fill="#245ba3" d="M15 9.5h4c.6 0 1 .4 1 1V14h3.5c.6 0 1 .4 1 1v4c0 .6-.4 1-1 1H20v3.5c0 .6-.4 1-1 1h-4c-.6 0-1-.4-1-1V20h-3.5c-.6 0-1-.4-1-1v-4c0-.6.4-1 1-1H14v-3.5c0-.6.4-1 1-1z"/>
+</svg>
