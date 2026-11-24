@@ -1,63 +1,69 @@
 # 안심이 개발 문서
 
+2026-11-24 기준. 새 작업을 시작할 때 현재 동작, 관련 코드, 검증 기록을 이 문서에서 확인한다. 프론트 기능 변경 기준은 `develop`의 [`29232c9`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/29232c90cbb7df03def229017cadddc0a6784d0e)이며, 백엔드 일반 도보 안내와 기존 요청 호환 처리는 [`2aa1f85`](https://github.com/shinhan-ansimi/ansimi-backend/commit/2aa1f853b2012124e86f3938894c2eb3c85144c9)까지 반영됐다.
+
+## 현재 사용자 흐름
+
+1. **출발지·도착지 설정**. 주소 또는 장소를 검색하거나 지도를 움직여 중앙 핀으로 선택한다. 주소·장소 검색은 먼저 온 결과부터 표시하고 정확히 일치하는 결과를 우선한다. 검색 결과를 선택하면 장소명과 주소를 바로 확인해 확정할 수 있다. 핀을 옮기면 새 주소를 조회한다. 현재 위치를 출발지로 사용할 수 있고, 확정 위치에는 색이 다른 ‘출발’·‘도착’ 라벨이 표시된다. [메인 화면](../src/pages/MainPage.tsx) · [주소·장소 검색](../src/hooks/useLocationSearch.ts) · [카카오맵](../src/components/KaKaoMap.tsx)
+2. **경로 찾기**. 양쪽 위치를 확정하면 추천 경로를 요청한다. 두 위치가 강남구 시범 권역 안이면 평가된 구간에 위험도 색을 적용한다. 어느 한쪽이 권역 밖이면 일반 도보 경로를 회색으로 표시하고 ‘위험도 평가 데이터 없음’을 안내한다. 전체 도보 경로는 회색 선으로 깔고 평가된 구간만 위험도 색으로 덧그린다. 지도 아래에는 경로 요약과 ‘귀가 시작’을 주변 시설보다 먼저 배치한다. [응답 처리](../src/lib/routes.ts) · [백엔드 경로 서비스](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/RouteService.java)
+3. **경로 주변 시설**. 카카오 장소 검색에서 편의점(`CS2`), 병원(`HP8`), 약국(`PM9`)을 찾는다. 전체 도보 경로를 우선 사용하고, 전체 경로가 없으면 평가 구간을 기준으로 계산한다. 경로 선까지의 최단 거리가 100m 이내인 시설만 남기고 장소 ID로 중복을 제거한다. 지도와 목록에는 같은 아이콘·유형 필터를 적용하며, 각 유형 안에서 경로에 가까운 순으로 정렬한다. 이 거리는 경로 선까지의 거리다. [시설 조회](../src/lib/facilities.ts) · [조회 상태](../src/hooks/useRouteFacilities.ts) · [시설 아이콘](../src/assets/icons/route-facilities/)
+4. **시설 상세**. 시설 카드는 화면에 맞춰 260~360px 높이로 유지한다. 목록에서 선택하면 같은 카드에서 상세를 열고, 목록으로 돌아가면 필터와 스크롤 위치가 복원된다. 지도 마커를 누르면 시설 이름·종류·주소·경로까지의 거리를 담은 상세 창이 바로 열리고 포커스가 이동한다. 경로가 바뀌면 이전 시설 검색 결과를 폐기한다. [시설 카드와 마커](../src/components/FacilityDetails.tsx)
+5. **귀가 안내**. 위치 권한이 허용되면 GPS로 현재 구간과 다음 안내 지점까지의 거리를 계산한다. 다음 행동은 지도 위에 표시한다. 위치 정확도가 낮거나 갱신이 끊기면 판단을 보류한다. 연속된 위치 갱신에서 이탈을 감지하면 현재 위치를 출발지로 재탐색하고, 도착하거나 안내를 종료하면 위치 추적과 진행 중 요청을 해제한다. [귀가 안내 화면](../src/components/HomeGuide.tsx) · [위치 감시](../src/hooks/useCurrentPosition.ts) · [구간 계산](../src/lib/navigation.ts)
+6. **PWA와 복원**. 배포 빌드에는 설치용 매니페스트, 아이콘, 서비스 워커가 있다. 저장된 귀가 안내는 새로고침 후 사용자가 ‘이어가기’를 선택하면 복원된다. 마지막 저장 시각부터 2시간이 지나거나 안내를 종료·완료하면 저장 상태를 정리한다. 앱이 숨겨지면 위치 감시를 중단하고 복귀하면 새 위치를 받는다. 지도와 경로 조회에는 네트워크가 필요하다. [매니페스트](../public/manifest.webmanifest) · [서비스 워커](../public/sw.js) · [상태 저장](../src/lib/guideStorage.ts)
+
+메인 화면 상단 문구는 ‘당신의 일상에 안심을’과 두 줄 제목 ‘오늘의 귀갓길, / 어디로 향하시나요?’다. [문구 복원 커밋](https://github.com/shinhan-ansimi/ansimi-frontend/commit/f5e118c)
+
+## 프론트와 백엔드 연결
+
+- 공개 화면은 [Vercel](https://ansimi-frontend.vercel.app/), 백엔드는 [Railway Swagger](https://ansimi-backend-production.up.railway.app/swagger-ui/index.html)에서 확인한다. 로컬 출처 `http://localhost:5173`와 Vercel 출처의 CORS 설정 및 서비스 권역 응답은 이전 연동 단계에서 확인했다.
+- `GET /api/service-area`는 강남구 시범 권역을 GeoJSON `Feature`의 `MultiPolygon`으로 반환한다. 프론트에서는 경계선과 옅은 음영을 그린다. `GET /api/health`는 서버 상태를 반환한다.
+- `POST /api/routes/recommend`에 `origin`과 `destination`을 보낸다. 각 위치의 `coord`는 필수 `[경도, 위도]`이고 `name`은 선택이다. 현재 프론트는 확정 위치의 주소를 `name`으로 보내고 `allowUnassessed: true`를 함께 전달한다. 출발지·도착지의 직선거리 제한은 50m~5km다. [요청과 응답 처리](../src/lib/routes.ts) · [OpenAPI JSON](https://ansimi-backend-production.up.railway.app/v3/api-docs)
+- `recommendedIndex`와 `index`가 일치하는 후보를 사용한다. 후보에는 거리(`distanceM`), 예상 시간(`durationMin`), 위험 점수·등급·고위험 구간 길이(`riskScore`, `riskLevel`, `redLengthM`)가 있다. `segments`는 GeoJSON `FeatureCollection`이며 각 구간은 `MultiLineString`과 `level`·`lengthM`을 가진다. `GREEN`, `YELLOW`, `RED`는 각각 위험도 낮음, 보통, 높음을 뜻한다. [위험도 구간 생성 코드](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/risk/RiskScoringService.java)
+- `navigation.path`는 출발에서 도착까지 순서가 있는 `[경도, 위도]` 배열이고, `navigation.steps`의 각 항목은 `pathIndex`와 `instruction`을 가진다. 권역 밖 일반 경로는 `modelVersion: "walking"`이며 위험도 값과 구간이 비어 있다. 기존 요청이 `allowUnassessed`를 생략하면 권역 밖에서 `422 OUT_OF_AREA`를 받는다. 카카오맵에 좌표를 넣을 때는 `new maps.LatLng(lat, lng)`처럼 순서를 바꾼다. [백엔드 안내 DTO](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/dto/NavigationDto.java) · [프론트 위치 타입](../src/types/location.ts)
+
+## 위험도 데이터와 표시 범위
+
+AI 파이프라인은 CCTV·보안등·비상벨·경찰시설, 야간 인구, 범죄율 지표 등을 집계해 위험 격자를 생성한다. 백엔드는 격자를 PostGIS에 적재하고 Tmap 도보 경로와 겹치는 부분을 계산해 평가 구간을 반환한다. 현재 추천 응답은 위험도 수치와 구간을 제공한다. ‘조명이 부족해서 위험하다’처럼 특정 구간의 평가 이유를 표시하려면 원인이나 지표 기여도를 응답에 추가해야 한다. AI의 좌표별 `/score`도 격자 안전 점수와 안심길 포함 여부 등을 반환하며 요인별 기여도는 응답에 없다. [AI 점수 산정](https://github.com/shinhan-ansimi/ansimi-ai/blob/develop/data_pipeline/scoring.py) · [AI 점수 API](https://github.com/shinhan-ansimi/ansimi-ai/blob/develop/fastapi_app/main.py) · [격자 적재](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/riskimport/RiskGridImportService.java)
+
+화면의 ‘경로 주변 시설’은 카카오 장소 검색의 일반 시설이다. 공식 지정 안심시설, 원본 범죄주의구간, 경로 밖 위험 격자를 별도로 표시하려면 각 데이터를 조회할 수 있는 출처와 범위를 정해야 한다. [카카오 장소 카테고리 검색](https://apis.map.kakao.com/web/documentation/#services_Places_categorySearch)
+
 ## 작업 기록
 
-| 이슈 | 작업 문서 | 현재 단계 |
-| --- | --- | --- |
-| #6 | [지도 및 주소 검색 기반 출발지·도착지 설정](./work/issue-6-location-selection.md) | 지도 선택 안내·중앙 마커·후보 주소 조회 및 확정 연결 완료, 브라우저 검증 전 |
+아래 이슈는 완료로 닫혔고 관련 PR은 `develop`에 머지됐다. 이후 직접 반영된 개선은 커밋 링크에서 확인한다.
 
-## 다음 작업 — 시범 권역 표시와 추천 경로 연동
-
-메인 화면(`/`)의 카카오맵에 강남구 시범 서비스 권역을 표시해 사용자가 출발지와 도착지를 고를 때 서비스 범위를 확인할 수 있게 한다. 두 위치를 확정하면 추천 경로를 요청하고 응답받은 구간을 위험도별로 표시한다. [현재 메인 화면](../src/pages/MainPage.tsx) · [지도 컴포넌트](../src/components/KaKaoMap.tsx)
-
-### API와 좌표 형식
-
-| 항목 | 확인한 내용 |
+| 작업 | 이슈·PR 또는 커밋 |
 | --- | --- |
-| 백엔드 주소 | `https://ansimi-backend-production.up.railway.app` |
-| 경로 추천 | `POST /api/routes/recommend`에 `origin`과 `destination`을 보낸다. 각각 필수 `coord: [경도, 위도]`와 선택 `name`을 가진다. `allowUnassessed: true`를 보내면 시범 권역 밖에서도 일반 도보 경로를 요청할 수 있다. |
-| 추천 결과 | `recommendedIndex`와 `index`가 일치하는 후보를 `candidates`에서 찾는다. 후보의 `distanceM`, `durationMin`, `riskLevel`, `segments`를 표시할 때 사용한다. |
-| 구간 형식 | `segments`는 GeoJSON `FeatureCollection`이다. 각 `Feature`의 `geometry`는 `MultiLineString`이며 `properties`에 `level`(`GREEN`, `YELLOW`, `RED`)과 `lengthM`이 있다. |
-| 서비스 권역 | `GET /api/service-area`는 강남구 시범 지역의 `MultiPolygon`을 담은 GeoJSON `Feature`를 반환한다. 백엔드는 양쪽 위치가 권역 안일 때 위험도를 평가한다. 일반 도보 경로에도 두 위치 사이의 거리 제한을 적용한다. |
-| CORS 확인 | `http://localhost:5173`과 `https://ansimi-frontend.vercel.app`에서 오는 `POST` 및 `Content-Type: application/json` 요청에 필요한 CORS 사전 요청이 허용되는 것을 확인했다. |
+| 메인 위치 카드, 카카오맵, 주소 검색·지도 선택 | [#1](https://github.com/shinhan-ansimi/ansimi-frontend/issues/1) · [#2](https://github.com/shinhan-ansimi/ansimi-frontend/issues/2) · [#4](https://github.com/shinhan-ansimi/ansimi-frontend/issues/4) · [#6](https://github.com/shinhan-ansimi/ansimi-frontend/issues/6) · [PR #7](https://github.com/shinhan-ansimi/ansimi-frontend/pull/7) · [#6 작업 기록](./work/issue-6-location-selection.md) |
+| 시범 권역과 위험도별 추천 경로 | [#8](https://github.com/shinhan-ansimi/ansimi-frontend/issues/8) · [PR #13](https://github.com/shinhan-ansimi/ansimi-frontend/pull/13) |
+| 현재 위치와 귀가 안내, 구간 판단·재탐색·도착 | [#9](https://github.com/shinhan-ansimi/ansimi-frontend/issues/9) · [PR #14](https://github.com/shinhan-ansimi/ansimi-frontend/pull/14) · [#10](https://github.com/shinhan-ansimi/ansimi-frontend/issues/10) · [PR #15](https://github.com/shinhan-ansimi/ansimi-frontend/pull/15) |
+| 예시 안전시설과 실제 경로 주변 시설 | [#11](https://github.com/shinhan-ansimi/ansimi-frontend/issues/11) · [PR #17](https://github.com/shinhan-ansimi/ansimi-frontend/pull/17) · [#18](https://github.com/shinhan-ansimi/ansimi-frontend/issues/18) · [PR #19](https://github.com/shinhan-ansimi/ansimi-frontend/pull/19) |
+| PWA 설치 설정과 귀가 안내 복원 | [#12](https://github.com/shinhan-ansimi/ansimi-frontend/issues/12) · [PR #16](https://github.com/shinhan-ansimi/ansimi-frontend/pull/16) |
+| 시설 아이콘·필터·목록 스크롤 | [`bc8bf49`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/bc8bf49) · [`2d35dfd`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/2d35dfd) |
+| 권역 밖 일반 도보 안내와 기존 API 호출 호환 | [프론트 `f97956d`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/f97956d) · [백엔드 `9acb018`](https://github.com/shinhan-ansimi/ansimi-backend/commit/9acb018) · [백엔드 `2aa1f85`](https://github.com/shinhan-ansimi/ansimi-backend/commit/2aa1f85) |
+| 주소 검색·화면 배치 개선, 상단 문구 복원, 지도 마커 상세 창 | [`2f97507`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/2f97507) · [`f5e118c`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/f5e118c) · [`29232c9`](https://github.com/shinhan-ansimi/ansimi-frontend/commit/29232c9) |
 
-프론트는 `Location`을 `{ latitude, longitude, address }`로 유지한다. 요청을 만들 때 `coord: [location.longitude, location.latitude]`로 변환한다. 응답의 GeoJSON 좌표 `[lng, lat]`는 카카오맵에 넘길 때 `new maps.LatLng(lat, lng)`로 변환한다. [프론트 위치 타입](../src/types/location.ts) · [배포 Swagger](https://ansimi-backend-production.up.railway.app/swagger-ui/index.html) · [OpenAPI JSON](https://ansimi-backend-production.up.railway.app/v3/api-docs) · [백엔드 요청 DTO](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/dto/Place.java)
+## 로컬 실행과 검증
 
-Swagger는 `segments`의 내부 형식을 `JsonNode`로 표시한다. 위 GeoJSON 구조는 백엔드의 응답 생성 코드에서 확인했다. 배포 서버에서 Swagger와 서비스 권역 조회는 확인했으며, 경로 추천 성공 응답은 연동 단계에서 확인해야 한다. [구간 응답 생성 코드](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/risk/RiskScoringService.java)
+1. 프로젝트 루트에서 `npm ci`를 실행한다.
+2. `.env.example`을 복사해 `.env.local`을 만들고 `VITE_KAKAO_MAP_KEY`에 카카오 JavaScript 키를 설정한다. 카카오 앱의 허용 도메인에 로컬 주소를 등록한다.
+3. `npm run dev`로 시작하고 `http://localhost:5173/`를 연다. 빌드와 린트는 `npm run build`, `npm run lint`로 확인한다. PWA 서비스 워커는 배포 빌드에서 등록한다.
 
-### 구현 및 검증 순서
+| 개발 서버 URL | 확인할 동작 |
+| --- | --- |
+| `/?routeExample=1` | 선택한 위치를 바탕으로 예시 경로와 안내 응답을 표시한다. 주변 시설은 카카오 검색을 사용한다. |
+| `/?routeExample=1&routeError=1` | 첫 경로 요청 실패, 오류 안내, 재시도를 확인한다. |
+| `/?routeExample=1&facilityExample=1` | 예시 경로와 편의점·병원·약국 예시 마커를 함께 확인한다. |
 
-- [ ] 메인 화면에서 `GET /api/service-area`로 시범 권역을 조회한다. 응답의 GeoJSON `MultiPolygon`을 카카오맵 `Polygon`으로 그려 경계선과 옅은 음영을 적용한다. 지도 범례에 ‘시범 서비스 권역’을 표시한다. [카카오맵 도형 예제](https://apis.map.kakao.com/web/sample/drawShape/)
-- [ ] `MainPage`에서 출발지와 도착지를 모두 확정하면 ‘경로 찾기’ 버튼을 활성화한다. 강남구 시범 권역 안의 테스트 좌표로 배포 API에 추천을 요청하고 성공 응답을 확인한다.
-- [ ] 추천 후보의 `segments`를 `KaKaoMap`에 전달한다. `MultiLineString`을 구성하는 선마다 `Polyline`을 만들고 위험도 등급별 색상을 적용한다. 거리·예상 시간·범례를 함께 표시한다. [카카오맵 Polyline 문서](https://apis.map.kakao.com/web/documentation/#Polyline)
-- [ ] 조회 중에는 중복 요청을 막고 권역 밖·거리 제한·조회 실패를 안내한다. 출발지나 도착지를 변경하거나 재탐색할 때 이전 경로를 지우고, 이전 요청의 응답이 최신 결과를 덮어쓰지 않도록 한다. 구간이 비어 있으면 평가 데이터가 없는 상태를 표시한다.
-- [ ] 로컬과 Vercel에서 시범 권역 경계가 API 응답과 일치하는지 확인하고, 출발·도착 확정부터 경로 표시까지 검증한다. 모바일에서 권역 경계와 범례를 읽을 수 있는지, 권역 음영 위에서도 경로와 마커가 잘 보이는지 확인한다. 재탐색 후에는 이전 경로가 사라지고 권역 경계가 계속 표시되는지 확인한다.
+### 확인한 결과와 남은 현장 검증
 
-로컬 개발 서버에서 `/?routeExample=1`로 열면 선택한 위치를 바탕으로 개발용 예시 경로를 확인할 수 있다. `&routeError=1`을 붙이면 첫 요청 실패 후 재시도를 확인할 수 있다. 배포 빌드에서는 실제 추천 API를 사용한다.
+- 2026-11-24 배포 API를 다시 확인했다. 강남역 → 역삼역은 `200`, `v1`, **932m·약 14분·안내 지점 13개**, 전체 위험도 보통을 반환했다. 서울시청 → 광화문은 `200`, `walking`, **1.2km·약 17분·안내 지점 13개**, 위험도 평가 데이터 없음으로 응답했다. 이전 500 응답과 재검증은 [이슈 #8](https://github.com/shinhan-ansimi/ansimi-frontend/issues/8)에 기록돼 있다.
+- 프론트 빌드·린트와 모의 데이터 검증에서 검색 결과 우선순위·시간 초과 시 부분 결과 유지, 시설 거리 필터·중복 제거·요청 취소, GPS 구간 계산, 저장 상태 복원·만료, 시설 상세 창 연결을 확인했다. 백엔드는 Tmap 파서, 경로 서비스, 기존 요청 호환성 관련 테스트를 통과했다.
+- 문서 작성 시점에 공개 Vercel 번들에서 일반 도보 요청, 출발·도착 라벨, PWA 매니페스트를 확인했다. 지도 마커 상세 창은 최신 GitHub `develop`에 반영돼 있고, 당시 공개 번들에서는 상세 창 코드를 확인하지 못했다. 배포 확인과 화면 조작 검증을 구분해 기록한다.
+- 실제 스마트폰에서는 위치 권한, 걷는 중 다음 안내·이탈 재탐색·도착, PWA 설치·잠금 후 복귀를 확인한다. PC와 모바일에서는 주소 검색 후 즉시 확정, 시설 필터와 상세 창, 상세를 닫은 뒤 지도·목록 위치가 유지되는지 확인한다.
 
-배포 API 확인 결과 `GET /api/service-area`는 로컬과 Vercel 출처에 모두 HTTP 200과 CORS 헤더를 반환했다. 강남역 인근에서 역삼역 인근으로 보낸 추천 요청은 HTTP 500(`INTERNAL_ERROR`)을 반환했다. 거리 제한 밖 요청의 HTTP 400(`INVALID_DISTANCE`)은 확인했다.
+## 기획 및 개발 참고 자료
 
-### 귀가 안내에 필요한 추천 응답
-
-귀가 안내는 후보의 `navigation.path`(출발→도착 순서의 `[경도, 위도]` 배열)와 `navigation.steps`(`pathIndex`와 `instruction`을 담은 배열)를 사용한다. 시범 권역 밖의 일반 도보 응답은 `modelVersion: "walking"`이며 위험도 정보가 비어 있다. 지도에는 전체 도보 경로를 회색으로 그리고, 평가 정보가 있는 구간을 위험도별 색으로 표시한다.
-
-### PWA 설치와 귀가 상태 복원
-
-HTTPS 배포 화면에서 브라우저의 홈 화면 추가 또는 앱 설치 기능으로 설치한다. 귀가 안내를 시작하거나 재탐색으로 경로가 바뀌면 앱에 필요한 경로와 위치를 이 기기의 저장소에 기록한다. 새로고침 후 사용자가 이어가기를 선택하면 위치를 다시 확인한다. 저장된 상태는 2시간 후 만료되며, 안내를 종료하거나 도착하면 삭제한다. 앱이 숨겨지면 위치 감시를 중단하고, 다시 보이면 새 위치 갱신을 기다린다.
-
-### AI 데이터와 후속 지도 표시
-
-AI 파이프라인은 안전시설과 위험 요인을 집계해 `risk_grid.geojson`을 생성한다. 백엔드는 이 파일을 배치로 PostGIS에 적재하고, Tmap 후보 경로와 위험 격자가 겹치는 부분을 계산해 구간별 등급을 반환한다. 지도 범례에서 `RED`는 ‘위험도 높음’으로 표시한다. [AI 파이프라인](https://github.com/shinhan-ansimi/ansimi-ai/blob/develop/README.md) · [백엔드 격자 적재 코드](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/riskimport/RiskGridImportService.java) · [경로 추천 서비스](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/RouteService.java)
-
-현재 Swagger에는 안전시설 위치, 원본 범죄주의구간, 경로 밖 위험 격자에 대한 별도 조회 API가 없다. 이 데이터를 지도에 표시하려면 백엔드와 조회 범위 및 응답 형식을 합의한다. 시설 좌표는 `Marker`, 선형 구간은 `Polyline`, 면형 격자는 `Polygon`으로 표시할 수 있다. [카카오맵 도형 예제](https://apis.map.kakao.com/web/sample/drawShape/)
-
-추천 경로가 표시되면 카카오 지도 SDK로 편의점·병원·약국을 조회하고, 지도에 표시된 경로 선에서 100m 이내의 장소를 마커로 그린다. 마커나 목록을 선택하면 상세 정보가 열린다. 로컬 개발 서버에서 `/?routeExample=1`로 예시 경로와 실제 카카오 장소 검색을 함께 시험할 수 있다. `&facilityExample=1`을 추가하면 예시 시설을 표시한다. [카카오 장소 카테고리 검색](https://apis.map.kakao.com/web/documentation/#services_Places_categorySearch)
-
-## 기획 및 개발 가이드
-
-- [안심이 프론트엔드 기획 및 구현 범위](./AnsimiFrontend_Guide.md)
+- [프론트엔드 기획 및 구현 범위](./AnsimiFrontend_Guide.md)
 - [React 프로젝트 시작 체크리스트](./React_프로젝트_시작_체크리스트.md)
 - [카카오맵 SDK 구현 가이드](./카카오맵_SDK_구현_가이드.md)
-- [화면 시안 폴더](./design/)
-
-작업별 요구사항, 구현 내용, 남은 작업과 검증 항목은 `work` 폴더에 기록합니다.
+- [화면 시안](./design/) · [작업별 기록](./work/)
