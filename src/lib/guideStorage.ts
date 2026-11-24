@@ -19,6 +19,7 @@ function isLocation(value: unknown): value is Location {
   return typeof location.latitude === 'number' && Math.abs(location.latitude) <= 90
     && typeof location.longitude === 'number' && Math.abs(location.longitude) <= 180
     && typeof location.address === 'string' && !!location.address.trim()
+    && (location.name === undefined || typeof location.name === 'string')
 }
 
 export function readStoredGuide(): StoredGuide | null {

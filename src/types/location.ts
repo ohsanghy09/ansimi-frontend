@@ -8,6 +8,7 @@ export type Location = {
   latitude: number // 위도
   longitude: number // 경도
   address: string // 도로명주소 또는 지번주소
+  name?: string // 검색에서 선택한 장소 이름
 }
 
 // 주소·장소 검색 결과는 위치 정보에 표시할 이름을 추가합니다.

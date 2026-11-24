@@ -62,11 +62,18 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
     let requestId = 0
     let timer: number | undefined
 
+    function knownLocation(center: ReturnType<MapInstance['getCenter']>) {
+      return target && Math.abs(center.getLat() - target.latitude) < 0.000001
+        && Math.abs(center.getLng() - target.longitude) < 0.000001 ? target : null
+    }
+
     function invalidate() {
+      if (!map) return
       requestId += 1
       window.clearTimeout(timer)
-      onCandidateChange?.(null)
-      onMessageChange?.('지도를 움직여 위치를 맞춰주세요.')
+      const known = knownLocation(map.getCenter())
+      onCandidateChange?.(known)
+      onMessageChange?.(known ? '' : '지도를 움직여 위치를 맞춰주세요.')
     }
 
     function lookup() {
@@ -74,6 +81,12 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
       const id = ++requestId
       const center = map.getCenter()
       window.clearTimeout(timer)
+      const known = knownLocation(center)
+      if (known) {
+        onCandidateChange?.(known)
+        onMessageChange?.('')
+        return
+      }
       onCandidateChange?.(null)
       onMessageChange?.('주소를 확인하고 있습니다…')
       timer = window.setTimeout(() => {
@@ -119,9 +132,15 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
     const markers = (['start', 'end'] as const).flatMap((type) => {
       const location = locations[type]
       if (!location) return []
-      return [new maps.Marker({ map,
+      const label = type === 'start' ? '출발' : '도착'
+      const content = document.createElement('span')
+      content.className = `pointer-events-none relative block whitespace-nowrap rounded-full border-2 border-white px-2.5 py-1 text-xs font-bold text-white shadow-md ${type === 'start' ? 'bg-[#167553] after:bg-[#167553]' : 'bg-[#305787] after:bg-[#305787]'} after:absolute after:-bottom-1 after:left-1/2 after:size-2 after:-translate-x-1/2 after:rotate-45`
+      content.textContent = label
+      content.setAttribute('role', 'img')
+      content.setAttribute('aria-label', `${label} ${location.name || location.address}`)
+      return [new maps.CustomOverlay({ map, content,
         position: new maps.LatLng(location.latitude, location.longitude),
-        title: `${type === 'start' ? '출발' : '도착'}: ${location.address}`,
+        xAnchor: 0.5, yAnchor: 1, zIndex: 4,
       })]
     })
     return () => markers.forEach((marker) => marker.setMap(null))

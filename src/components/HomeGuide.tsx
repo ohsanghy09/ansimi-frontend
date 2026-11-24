@@ -119,15 +119,13 @@ export default function HomeGuide({ route, locations, serviceArea, facilityPanel
         <header className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4">
           <div>
             <h1 className="text-xl font-semibold">귀가 안내</h1>
-            <p className="mt-1 text-sm text-[#426459]">{locations.end?.address}</p>
+            <p className="mt-1 text-sm text-[#426459]">{locations.end?.name || locations.end?.address}</p>
           </div>
           <button type="button" onClick={onEnd} className="shrink-0 rounded-lg bg-[#EEF2E9] px-3 py-2 text-sm font-semibold">안내 종료</button>
         </header>
         {storageMessage && <p role="status" className="text-sm text-[#426459]">{storageMessage}</p>}
-        <KaKaoMap target={target} locations={locations} currentPosition={fix?.location} serviceArea={serviceArea} showPilotArea route={route} onReady={handleMapReady} />
-        <div className="rounded-2xl bg-white p-4">
-          <p className="text-sm font-semibold">전체 {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
-          {!route.lines.length && <p className="mt-1 text-sm text-[#426459]">일반 도보 안내 · 위험도 평가 데이터 없음</p>}
+        <section aria-label="다음 안내" className="rounded-2xl bg-white p-4">
+          <h2 className="text-sm font-semibold text-[#426459]">다음 안내</h2>
           {error ? <div className="mt-2 space-y-2">
             <p role="alert" className="text-sm text-[#9d3037]">{error}</p>
             <button type="button" className="text-sm font-semibold underline" onClick={retry}>위치 다시 확인</button>
@@ -140,19 +138,25 @@ export default function HomeGuide({ route, locations, serviceArea, facilityPanel
               onClick={() => { if (fix) void reroute(fix) }}>경로 다시 찾기</button>
           </div>}
           {!navigation?.length && <p className="mt-2 text-sm">이 경로의 실시간 구간 안내 데이터가 없습니다.</p>}
-          {fix && fix.accuracy <= MAX_ACCURACY_M && !!navigation?.length && !rerouting && !rerouteError && <div role="status" className="mt-2 text-sm">
+          {fix && fix.accuracy <= MAX_ACCURACY_M && !!navigation?.length && !rerouting && !rerouteError && <div className="mt-2 text-sm">
             {progress ? <>
-              <p>남은 경로 약 {Math.round(progress.remaining)} m</p>
-              {current && <p className="mt-1 font-semibold">{current.instruction}</p>}
-              {next && <p className="mt-1 font-semibold">
-                약 {Math.round(navigation.cumulative[next.pathIndex] - progress.meters)} m 앞 · {next.instruction}
-              </p>}
+              {next ? <p className="text-lg font-semibold leading-snug">
+                약 {Math.round(navigation.cumulative[next.pathIndex] - progress.meters)} m 앞 <span aria-live="polite">{next.instruction}</span>
+              </p> : current && <p className="text-lg font-semibold leading-snug" aria-live="polite">{current.instruction}</p>}
+              {next && current && <p className="mt-1 text-[#426459]">현재 구간 · {current.instruction}</p>}
+              <p className="mt-1 text-[#426459]">남은 경로 약 {Math.round(progress.remaining)} m</p>
             </> : <p>현재 위치와 경로를 확인하고 있습니다…</p>}
           </div>}
+        </section>
+        <KaKaoMap target={target} locations={locations} currentPosition={fix?.location} serviceArea={serviceArea} showPilotArea route={route} onReady={handleMapReady} />
+        <div className="rounded-2xl bg-white p-4">
+          <p className="text-sm font-semibold">전체 {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
+          {!route.lines.length && <p className="mt-1 text-sm text-[#426459]">일반 도보 안내 · 위험도 평가 데이터 없음</p>}
           {fix && !error && <button type="button" className="mt-3 rounded-lg bg-[#EEF2E9] px-3 py-2 text-sm font-semibold"
             onClick={() => setTarget({ ...fix.location })}>현재 위치로 이동</button>}
         </div>
-        {!rerouting && facilityPanel.visible && facilityMap && <FacilityDetails panel={facilityPanel} {...facilityMap} />}
+        {facilityPanel.visible && facilityMap && <FacilityDetails
+          panel={rerouting ? { ...facilityPanel, result: null } : facilityPanel} {...facilityMap} />}
       </div>
     </div>
   )

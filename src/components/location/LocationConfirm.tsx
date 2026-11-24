@@ -13,11 +13,14 @@ function LocationConfirm({ searchType, candidate, message, onCancel, onConfirm }
   const label = searchType === 'start' ? '출발지' : '도착지'
   return (
     <section aria-label={`${label} 확정`} className="rounded-2xl bg-white p-4 text-[#183B36] shadow-sm">
-      <p className="text-xs text-[#55786A]">선택 중인 {label}</p>
-      <p role="status" className="mt-2 min-h-12 text-sm font-medium">{candidate?.address ?? message}</p>
+      <p className="text-sm font-semibold">선택한 {label}</p>
+      <div role="status" className="mt-1 min-h-5 text-sm">
+        {candidate?.name && candidate.name !== candidate.address && <p className="font-semibold">{candidate.name}</p>}
+        <p className="text-[#426459]">{candidate?.address ?? message}</p>
+      </div>
       <div className="mt-3 flex gap-2">
         <button type="button" onClick={onCancel} className="min-h-12 rounded-xl bg-[#F0F3EE] px-5 font-semibold">취소</button>
-        <button type="button" disabled={!candidate} onClick={onConfirm} className="min-h-12 flex-1 rounded-xl bg-[#183B36] px-3 font-semibold text-white disabled:opacity-40">이 위치로 {label} 설정</button>
+        <button type="button" disabled={!candidate} onClick={onConfirm} className="min-h-12 flex-1 rounded-xl bg-[#183B36] px-3 font-semibold text-white disabled:opacity-40">{label} 확정</button>
       </div>
     </section>
   )

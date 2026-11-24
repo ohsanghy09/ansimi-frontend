@@ -115,9 +115,8 @@ function MainPage () {
             cancelSelection()
             return
         }
-        // 확정 주소는 유지하고 지도 중심의 주소를 새 후보로 조회합니다.
-        setCandidate(null)
-        setCandidateMessage(maps ? '주소를 확인하고 있습니다…' : '지도를 불러온 뒤 위치를 선택해주세요.')
+        setCandidate(locations[type])
+        setCandidateMessage(maps ? '검색하거나 지도에서 위치를 선택해주세요.' : '지도를 불러온 뒤 위치를 선택해주세요.')
         resetSearch()
         setMapTarget(locations[type])
         setSearchType(type)
@@ -126,9 +125,9 @@ function MainPage () {
     function selectSearchResult(result: SearchResult) {
         if (!searchType) return
         resetSearch()
-        setCandidate(null)
-        setCandidateMessage('주소를 확인하고 있습니다…')
-        setMapTarget({ ...result })
+        setCandidate(result)
+        setCandidateMessage('')
+        setMapTarget(result)
     }
 
     function confirmLocation() {
@@ -215,6 +214,8 @@ function MainPage () {
             }} />
     }
 
+    const canStartGuide = !arrived && !!route && (route.lines.length > 0 || !!route.navigation)
+
     return (
 
         // 배경은 화면을 채우고 콘텐츠는 패딩을 포함해 최대 480px로 가운데 정렬합니다.
@@ -222,18 +223,8 @@ function MainPage () {
             <div className="mx-auto w-full max-w-[480px] px-4 py-6 sm:px-6">
             
 
-            <header className="mb-6">
-
-                {/* tracking-widest는 글자 간격 넓히기 */}
-                <p className="text-xs font-medium tracking-widest text-[#55786A]">
-                    당신의 일상에 안심을
-                </p>
-
-                {/* leading-snug는 줄 간격 좁힘 */}
-                <h1 className="mt-2 text-2xl font-semibold leading-snug text-[#183B36]">
-                    오늘의 귀갓길, <br />
-                    어디로 향하시나요?
-                </h1>
+            <header className="mb-4">
+                <h1 className="text-2xl font-semibold text-[#183B36]">귀가 경로 찾기</h1>
             </header>
 
             {resumable && <section aria-label="귀가 안내 복원" className="mb-5 space-y-3 rounded-2xl bg-white p-4 text-[#183B36]">
@@ -269,6 +260,18 @@ function MainPage () {
                 </div>
             )}
 
+            {searchType && (
+                <div className="sticky top-2 z-20 mt-3">
+                    <LocationConfirm
+                        searchType={searchType}
+                        candidate={candidate}
+                        message={candidateMessage}
+                        onCancel={cancelSelection}
+                        onConfirm={confirmLocation}
+                    />
+                </div>
+            )}
+
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
                 <KaKaoMap target={mapTarget} onReady={handleMapReady}
@@ -287,22 +290,6 @@ function MainPage () {
                 </p>}
             </div>
 
-            {!searchType && facilityPanel.visible && <div className="mt-4">
-                <FacilityDetails panel={facilityPanel} maps={maps} map={facilityMap} />
-            </div>}
-
-            {searchType && (
-                <div className="mt-6">
-                    <LocationConfirm
-                        searchType={searchType}
-                        candidate={candidate}
-                        message={candidateMessage}
-                        onCancel={cancelSelection}
-                        onConfirm={confirmLocation}
-                    />
-                </div>
-            )}
-
             {!searchType && <section aria-label="추천 경로" className="mt-5 space-y-3">
                 {arrived && <p role="status" className="rounded-xl bg-white p-4 font-semibold text-[#183B36]">목적지에 도착했습니다.</p>}
                 {routeExample && <p className="text-sm font-semibold text-[#825900]">개발용 예시 경로</p>}
@@ -318,22 +305,22 @@ function MainPage () {
                         </li>}
                     </ul> : <p className="mt-2 text-sm">이 경로의 위험도 평가 데이터가 없습니다.</p>}
                 </div>}
-                <button type="button" disabled={!locations.start || !locations.end || loadingRoute}
-                    onClick={findRoute} className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
-                    {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
-                </button>
-                {!arrived && route && (route.lines.length > 0 || route.navigation) && <button type="button" disabled={locating} onClick={startGuide}
-                    className="w-full rounded-xl bg-[#167553] px-4 py-3 font-semibold text-white disabled:opacity-50">
+                {canStartGuide && <button type="button" disabled={locating} onClick={startGuide}
+                    className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     귀가 시작
                 </button>}
+                {(!locations.start || !locations.end) && <p className="text-sm text-[#426459]">
+                    {locations.start ? '도착지를 먼저 설정해주세요.' : locations.end ? '출발지를 먼저 설정해주세요.' : '출발지와 도착지를 먼저 설정해주세요.'}
+                </p>}
+                <button type="button" disabled={!locations.start || !locations.end || loadingRoute} onClick={findRoute}
+                    className={`w-full rounded-xl px-4 py-3 font-semibold disabled:opacity-50 ${canStartGuide ? 'border border-[#183B36] bg-white text-[#183B36]' : 'bg-[#183B36] text-white'}`}>
+                    {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
+                </button>
             </section>}
 
-            {/* 우측 하단 문구 */}
-            <footer className="mt-6 text-right">
-                <p className="text-sm font-medium tracking-wide text-[#55786A]">
-                    집으로 향하는 길, 마음은 가볍게.
-                </p>
-            </footer>
+            {!searchType && facilityPanel.visible && <div className="mt-4">
+                <FacilityDetails panel={facilityPanel} maps={maps} map={facilityMap} />
+            </div>}
             </div>
         </main>
 
