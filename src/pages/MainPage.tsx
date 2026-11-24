@@ -9,6 +9,8 @@ import type { KakaoMaps } from '../lib/kakaoMaps'
 import { useLocationSearch } from '../hooks/useLocationSearch'
 import { getServiceArea, recommendRoute, riskStyles, routeExample, withinServiceArea } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
+import HomeGuide from '../components/HomeGuide'
+import { positionError, positionOptions, toPositionFix } from '../hooks/useCurrentPosition'
 
 
 
@@ -28,6 +30,10 @@ function MainPage () {
     const [loadingRoute, setLoadingRoute] = useState(false)
     const [routeError, setRouteError] = useState('')
     const routeRequest = useRef<AbortController | null>(null)
+    const positionRequest = useRef(0)
+    const [locating, setLocating] = useState(false)
+    const [positionMessage, setPositionMessage] = useState('')
+    const [guiding, setGuiding] = useState(false)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
 
     useEffect(() => {
@@ -41,6 +47,7 @@ function MainPage () {
     }, [areaAttempt])
 
     useEffect(() => () => routeRequest.current?.abort(), [])
+    useEffect(() => () => { positionRequest.current += 1 }, [])
 
     function clearRoute() {
         routeRequest.current?.abort()
@@ -90,6 +97,9 @@ function MainPage () {
     }
 
     function selectLocation(type: LocationType) {
+        positionRequest.current += 1
+        setLocating(false)
+        setPositionMessage('')
         if (searchType === type) {
             cancelSelection()
             return
@@ -117,6 +127,33 @@ function MainPage () {
         cancelSelection()
     }
 
+    function usePositionAsStart() {
+        if (locating) return
+        if (!navigator.geolocation) {
+            setPositionMessage('이 브라우저에서는 현재 위치를 사용할 수 없습니다.')
+            return
+        }
+        const request = ++positionRequest.current
+        setLocating(true)
+        setPositionMessage('')
+        navigator.geolocation.getCurrentPosition((position) => {
+            if (request !== positionRequest.current) return
+            const { location } = toPositionFix(position)
+            clearRoute()
+            setLocations((previous) => ({ ...previous, start: location }))
+            setMapTarget(location)
+            setLocating(false)
+        }, (reason) => {
+            if (request !== positionRequest.current) return
+            setPositionMessage(positionError(reason))
+            setLocating(false)
+        }, positionOptions)
+    }
+
+    if (guiding && route) {
+        return <HomeGuide route={route} locations={locations} serviceArea={area} onEnd={() => setGuiding(false)} />
+    }
+
     return (
 
         // 배경은 화면을 채우고 콘텐츠는 패딩을 포함해 최대 480px로 가운데 정렬합니다.
@@ -141,6 +178,14 @@ function MainPage () {
 
             {/* 화면 상단 카드 컴포넌트*/}
             <LocationCard searchType={searchType} locations={locations} onSelect={selectLocation} />
+
+            {!searchType && <div className="mt-3">
+                <button type="button" onClick={usePositionAsStart} disabled={locating}
+                    className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#183B36] disabled:opacity-50">
+                    {locating ? '현재 위치 확인 중…' : '현재 위치를 출발지로 사용'}
+                </button>
+                {positionMessage && <p role="alert" className="mt-2 text-sm text-[#9d3037]">{positionMessage}</p>}
+            </div>}
 
             {searchType && (
                 <div className="mt-6">
@@ -196,6 +241,10 @@ function MainPage () {
                     onClick={findRoute} className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
                 </button>
+                {route && route.lines.length > 0 && <button type="button" disabled={locating} onClick={() => setGuiding(true)}
+                    className="w-full rounded-xl bg-[#167553] px-4 py-3 font-semibold text-white disabled:opacity-50">
+                    귀가 시작
+                </button>}
             </section>}
 
             {/* 우측 하단 문구 */}

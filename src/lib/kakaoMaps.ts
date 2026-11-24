@@ -33,8 +33,11 @@ export type KakaoMaps = {
   load(callback: () => void): void
   LatLng: new (latitude: number, longitude: number) => LatLng
   LatLngBounds: new () => Bounds
+  Size: new (width: number, height: number) => object
+  Point: new (x: number, y: number) => object
   Map: new (container: HTMLElement, options: { center: LatLng; level: number }) => MapInstance
-  Marker: new (options: { map: MapInstance; position: LatLng; title: string }) => Overlay
+  MarkerImage: new (src: string, size: object, options: { offset: object }) => object
+  Marker: new (options: { map: MapInstance; position: LatLng; title: string; image?: object; zIndex?: number }) => Overlay
   Polygon: new (options: ShapeOptions & { path: LatLng[][]; fillColor: string; fillOpacity: number }) => Overlay
   Polyline: new (options: ShapeOptions & { path: LatLng[] }) => Overlay
   event: {
