@@ -11,6 +11,8 @@ import { getServiceArea, recommendRoute, riskStyles, routeExample, withinService
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 import HomeGuide from '../components/HomeGuide'
 import { positionError, positionOptions, toPositionFix } from '../hooks/useCurrentPosition'
+import { discardGuide, readStoredGuide, saveGuide } from '../lib/guideStorage'
+import type { StoredGuide } from '../lib/guideStorage'
 
 
 
@@ -35,6 +37,9 @@ function MainPage () {
     const [positionMessage, setPositionMessage] = useState('')
     const [guiding, setGuiding] = useState(false)
     const [arrived, setArrived] = useState(false)
+    const [resumable, setResumable] = useState<StoredGuide | null>(() => readStoredGuide())
+    const [storageMessage, setStorageMessage] = useState('')
+    const guideId = useRef<string | null>(null)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
 
     useEffect(() => {
@@ -152,13 +157,55 @@ function MainPage () {
         }, positionOptions)
     }
 
+    function startGuide() {
+        const { start, end } = locations
+        if (!start || !end || !route) return
+        const id = crypto.randomUUID()
+        guideId.current = id
+        setResumable(null)
+        setStorageMessage(saveGuide({ id, savedAt: Date.now(), start, end, route }, true) ? ''
+            : '이 기기에는 귀가 상태를 저장할 수 없습니다.')
+        setGuiding(true)
+    }
+
+    function restoreGuide() {
+        const stored = readStoredGuide()
+        setResumable(null)
+        if (!stored || stored.id !== resumable?.id) {
+            setStorageMessage('이전 귀가 안내의 저장 시간이 지났거나 상태가 변경됐습니다.')
+            return
+        }
+        positionRequest.current += 1
+        setLocating(false)
+        clearRoute()
+        cancelSelection()
+        guideId.current = stored.id
+        setStorageMessage('')
+        setLocations({ start: stored.start, end: stored.end })
+        setRoute(stored.route)
+        setGuiding(true)
+    }
+
+    function finishGuide(didArrive: boolean) {
+        if (guideId.current) discardGuide(guideId.current)
+        guideId.current = null
+        setStorageMessage('')
+        setGuiding(false)
+        setArrived(didArrive)
+    }
+
     if (guiding && route) {
         return <HomeGuide route={route} locations={locations} serviceArea={area}
-            onEnd={() => setGuiding(false)}
-            onArrive={() => { setGuiding(false); setArrived(true) }}
+            storageMessage={storageMessage} onEnd={() => finishGuide(false)}
+            onArrive={() => finishGuide(true)}
             onRouteChange={(result, start) => {
                 setRoute(result)
                 setLocations((previous) => ({ ...previous, start }))
+                const id = guideId.current
+                const end = locations.end
+                if (id && end && !saveGuide({ id, savedAt: Date.now(), start, end, route: result }, false)) {
+                    setStorageMessage('업데이트된 귀가 상태를 이 기기에 저장할 수 없습니다.')
+                }
             }} />
     }
 
@@ -183,6 +230,18 @@ function MainPage () {
                 </h1>
             </header>
 
+            {resumable && <section aria-label="귀가 안내 복원" className="mb-5 space-y-3 rounded-2xl bg-white p-4 text-[#183B36]">
+                <h2 className="font-semibold">이전 귀가 안내를 이어갈까요?</h2>
+                <p className="text-sm">목적지 · {resumable.end.address}</p>
+                <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rounded-lg bg-[#183B36] px-3 py-2 text-sm font-semibold text-white" onClick={restoreGuide}>이어가기</button>
+                    <button type="button" className="rounded-lg bg-[#EEF2E9] px-3 py-2 text-sm font-semibold" onClick={() => {
+                        discardGuide(resumable.id)
+                        setResumable(null)
+                    }}>저장된 안내 종료</button>
+                </div>
+            </section>}
+            {storageMessage && <p role="status" className="mb-5 text-sm text-[#426459]">{storageMessage}</p>}
 
             {/* 화면 상단 카드 컴포넌트*/}
             <LocationCard searchType={searchType} locations={locations} onSelect={selectLocation} />
@@ -250,7 +309,7 @@ function MainPage () {
                     onClick={findRoute} className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
                 </button>
-                {!arrived && route && (route.lines.length > 0 || route.navigation) && <button type="button" disabled={locating} onClick={() => setGuiding(true)}
+                {!arrived && route && (route.lines.length > 0 || route.navigation) && <button type="button" disabled={locating} onClick={startGuide}
                     className="w-full rounded-xl bg-[#167553] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     귀가 시작
                 </button>}
