@@ -12,7 +12,6 @@ type FacilityDetailsProps = {
 }
 
 const facilityOrder = Object.keys(facilityTypes) as FacilityType[]
-const previewCount = 3
 
 function FacilityGroup({ type, facilities, selected, onSelect }: {
   type: FacilityType
@@ -20,9 +19,7 @@ function FacilityGroup({ type, facilities, selected, onSelect }: {
   selected: Facility | null
   onSelect: (facility: Facility) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
   const { icon, label } = facilityTypes[type]
-  const rows = expanded ? facilities : facilities.slice(0, previewCount)
 
   return <div className="space-y-2 border-t border-[#dbe5dc] pt-3">
     <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -30,7 +27,7 @@ function FacilityGroup({ type, facilities, selected, onSelect }: {
       {label} {facilities.length}곳
     </h3>
     <ul className="space-y-1">
-      {rows.map((facility) => <li key={facility.id}>
+      {facilities.map((facility) => <li key={facility.id}>
         <button type="button" aria-pressed={selected?.id === facility.id}
           className="flex w-full flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg px-2 py-2 text-left text-sm hover:bg-[#f0f5ef] aria-pressed:bg-[#e5efe8]"
           onClick={() => onSelect(facility)}>
@@ -41,11 +38,6 @@ function FacilityGroup({ type, facilities, selected, onSelect }: {
         </button>
       </li>)}
     </ul>
-    {facilities.length > previewCount && <button type="button" aria-expanded={expanded}
-      className="rounded px-2 py-1 text-sm font-semibold text-[#426459] underline"
-      onClick={() => setExpanded((previous) => !previous)}>
-      {label} {expanded ? '접기' : '더 보기'}
-    </button>}
   </div>
 }
 
@@ -56,6 +48,7 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
   const [selection, setSelection] = useState<{ list: Facility[]; facility: Facility } | null>(null)
   const selected = selection && selection.list === facilities ? selection.facility : null
   const section = useRef<HTMLElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   const groups = useMemo(() => facilityOrder.map((type) => ({
     type, facilities: facilities?.filter((facility) => facility.type === type) ?? [],
   })), [facilities])
@@ -87,6 +80,7 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
     if (next === filter) return
     setFilter(next)
     setSelection(null)
+    list.current?.scrollTo(0, 0)
   }
 
   function selectFromList(facility: Facility) {
@@ -133,8 +127,11 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
         상세 닫기
       </button>
     </div>}
-    {groups.map(({ type, facilities }) => (filter === 'all' || filter === type) && !!facilities.length &&
-      <FacilityGroup key={type} type={type} facilities={facilities} selected={selected} onSelect={selectFromList} />)}
+    {!!visibleFacilities?.length && <div ref={list} role="region" aria-label="시설 목록" tabIndex={0}
+      className="max-h-[min(320px,40dvh)] space-y-3 overflow-y-auto rounded-sm pr-2 focus-visible:outline-2 focus-visible:outline-[#426459]">
+      {groups.map(({ type, facilities }) => (filter === 'all' || filter === type) && !!facilities.length &&
+        <FacilityGroup key={type} type={type} facilities={facilities} selected={selected} onSelect={selectFromList} />)}
+    </div>}
   </section>
 }
 
