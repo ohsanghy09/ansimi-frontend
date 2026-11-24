@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FACILITY_DISTANCE_M, facilityTypes } from '../lib/facilities'
 import type { Facility, FacilitySearch, FacilityType } from '../lib/facilities'
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
@@ -11,7 +11,19 @@ type FacilityDetailsProps = {
   panel: FacilityPanel
 }
 
+type FacilitySelection = { list: Facility[]; facility: Facility }
+
 const facilityOrder = Object.keys(facilityTypes) as FacilityType[]
+
+function FacilitySummary({ facility, example }: { facility: Facility; example: boolean }) {
+  return <>
+    <p className="mt-1 text-sm">{facilityTypes[facility.type].label}</p>
+    <p className="mt-1 text-sm">{facility.address || (example ? '예시 위치' : '주소 정보 없음')}</p>
+    {facility.distanceM !== undefined && <p className="mt-1 text-xs text-[#426459]">
+      경로에서 약 {Math.round(facility.distanceM)}m
+    </p>}
+  </>
+}
 
 function FacilityGroup({ type, facilities, onSelect }: {
   type: FacilityType
@@ -44,16 +56,29 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
   const { result, example, retry } = panel
   const facilities = result?.facilities
   const [filter, setFilter] = useState<FacilityType | 'all'>('all')
-  const [selection, setSelection] = useState<{ list: Facility[]; facility: Facility } | null>(null)
+  const [selection, setSelection] = useState<FacilitySelection | null>(null)
+  const [mapSelection, setMapSelection] = useState<FacilitySelection | null>(null)
   const selected = selection && selection.list === facilities ? selection.facility : null
+  const mapFacility = mapSelection && mapSelection.list === facilities ? mapSelection.facility : null
   const body = useRef<HTMLDivElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  const dialogTitleId = useId()
   const listScrollTop = useRef(0)
   const previousFacilities = useRef<Facility[] | undefined>(undefined)
   const groups = useMemo(() => facilityOrder.map((type) => ({
     type, facilities: facilities?.filter((facility) => facility.type === type) ?? [],
   })), [facilities])
   const visibleFacilities = filter === 'all' ? facilities : groups.find(({ type }) => type === filter)?.facilities
-  const selectMarker = useEffectEvent(selectFacility)
+  const selectMarker = useEffectEvent((facility: Facility, list: Facility[]) => {
+    if (list === facilities) setMapSelection({ list, facility })
+  })
+
+  useLayoutEffect(() => {
+    const element = dialog.current
+    if (!element) return
+    if (mapFacility && !element.open) element.showModal()
+    if (!mapFacility && element.open) element.close()
+  }, [mapFacility])
 
   useLayoutEffect(() => {
     if (previousFacilities.current !== facilities) {
@@ -72,7 +97,7 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
         position: new maps.LatLng(latitude, longitude),
         image: new maps.MarkerImage(icon, new maps.Size(34, 34), { offset: new maps.Point(17, 17) }),
       })
-      const select = () => selectMarker(facility)
+      const select = () => selectMarker(facility, facilities)
       maps.event.addListener(marker, 'click', select)
       return { marker, select }
     })
@@ -123,11 +148,7 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
       {selected ? <div className="flex items-start justify-between gap-3 rounded-lg bg-[#EEF2E9] p-3">
         <div role="status" className="min-w-0 wrap-break-word">
           <h3 className="font-semibold">{selected.name}</h3>
-          <p className="mt-1 text-sm">{facilityTypes[selected.type].label}</p>
-          <p className="mt-1 text-sm">{selected.address || (example ? '예시 위치' : '주소 정보 없음')}</p>
-          {selected.distanceM !== undefined && <p className="mt-1 text-xs text-[#426459]">
-            경로에서 약 {Math.round(selected.distanceM)}m
-          </p>}
+          <FacilitySummary facility={selected} example={example} />
         </div>
         <button type="button" className="shrink-0 rounded-lg bg-white px-3 py-2 text-sm font-semibold" onClick={() => setSelection(null)}>
           목록으로
@@ -144,6 +165,22 @@ export default function FacilityDetails({ maps, map, panel }: FacilityDetailsPro
           <FacilityGroup key={type} type={type} facilities={facilities} onSelect={selectFromList} />)}
       </>}
     </div>
+    <dialog ref={dialog} aria-labelledby={dialogTitleId}
+      className="fixed inset-x-0 top-auto bottom-0 mx-auto max-h-[80dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 text-[#183B36] shadow-xl backdrop:bg-black/30 sm:inset-y-0 sm:my-auto sm:w-11/12 sm:rounded-2xl"
+      onCancel={(event) => {
+        event.preventDefault()
+        setMapSelection(null)
+      }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {mapFacility && <img src={facilityTypes[mapFacility.type].icon} alt="" className="size-8 shrink-0" />}
+          <h2 id={dialogTitleId} className="wrap-break-word text-lg font-semibold">{mapFacility?.name ?? '시설 상세'}</h2>
+        </div>
+        <button type="button" className="min-h-10 shrink-0 rounded-lg bg-[#EEF2E9] px-3 text-sm font-semibold"
+          onClick={() => setMapSelection(null)}>닫기</button>
+      </div>
+      {mapFacility && <div className="mt-3 wrap-break-word"><FacilitySummary facility={mapFacility} example={example} /></div>}
+    </dialog>
   </section>
 }
 
