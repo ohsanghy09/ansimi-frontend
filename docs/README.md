@@ -15,10 +15,10 @@
 | 항목 | 확인한 내용 |
 | --- | --- |
 | 백엔드 주소 | `https://ansimi-backend-production.up.railway.app` |
-| 경로 추천 | `POST /api/routes/recommend`에 `origin`과 `destination`을 보낸다. 각각 필수 `coord: [경도, 위도]`와 선택 `name`을 가진다. |
+| 경로 추천 | `POST /api/routes/recommend`에 `origin`과 `destination`을 보낸다. 각각 필수 `coord: [경도, 위도]`와 선택 `name`을 가진다. `allowUnassessed: true`를 보내면 시범 권역 밖에서도 일반 도보 경로를 요청할 수 있다. |
 | 추천 결과 | `recommendedIndex`와 `index`가 일치하는 후보를 `candidates`에서 찾는다. 후보의 `distanceM`, `durationMin`, `riskLevel`, `segments`를 표시할 때 사용한다. |
 | 구간 형식 | `segments`는 GeoJSON `FeatureCollection`이다. 각 `Feature`의 `geometry`는 `MultiLineString`이며 `properties`에 `level`(`GREEN`, `YELLOW`, `RED`)과 `lengthM`이 있다. |
-| 서비스 권역 | `GET /api/service-area`는 강남구 시범 지역의 `MultiPolygon`을 담은 GeoJSON `Feature`를 반환한다. 백엔드는 두 위치의 권역 포함 여부와 거리 제한을 검사한다. |
+| 서비스 권역 | `GET /api/service-area`는 강남구 시범 지역의 `MultiPolygon`을 담은 GeoJSON `Feature`를 반환한다. 백엔드는 양쪽 위치가 권역 안일 때 위험도를 평가한다. 일반 도보 경로에도 두 위치 사이의 거리 제한을 적용한다. |
 | CORS 확인 | `http://localhost:5173`과 `https://ansimi-frontend.vercel.app`에서 오는 `POST` 및 `Content-Type: application/json` 요청에 필요한 CORS 사전 요청이 허용되는 것을 확인했다. |
 
 프론트는 `Location`을 `{ latitude, longitude, address }`로 유지한다. 요청을 만들 때 `coord: [location.longitude, location.latitude]`로 변환한다. 응답의 GeoJSON 좌표 `[lng, lat]`는 카카오맵에 넘길 때 `new maps.LatLng(lat, lng)`로 변환한다. [프론트 위치 타입](../src/types/location.ts) · [배포 Swagger](https://ansimi-backend-production.up.railway.app/swagger-ui/index.html) · [OpenAPI JSON](https://ansimi-backend-production.up.railway.app/v3/api-docs) · [백엔드 요청 DTO](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/dto/Place.java)
@@ -39,7 +39,7 @@ Swagger는 `segments`의 내부 형식을 `JsonNode`로 표시한다. 위 GeoJSO
 
 ### 귀가 안내에 필요한 추천 응답
 
-실시간 구간 안내에는 출발부터 도착까지 순서가 있는 전체 경로와 안내 지점이 필요하다. 개발용 응답은 후보에 `navigation.path`(출발→도착 순서의 `[경도, 위도]` 배열)와 `navigation.steps`(`pathIndex`와 `instruction`을 담은 배열)를 포함한다. 배포 API에 연결하기 전에 백엔드와 이 응답 형식을 확정한다. `navigation`이 없는 응답은 지도에 위험도 구간과 GPS 위치를 표시하고, 실시간 구간 안내 데이터가 없다고 안내한다.
+귀가 안내는 후보의 `navigation.path`(출발→도착 순서의 `[경도, 위도]` 배열)와 `navigation.steps`(`pathIndex`와 `instruction`을 담은 배열)를 사용한다. 시범 권역 밖의 일반 도보 응답은 `modelVersion: "walking"`이며 위험도 정보가 비어 있다. 지도에는 전체 도보 경로를 회색으로 그리고, 평가 정보가 있는 구간을 위험도별 색으로 표시한다.
 
 ### PWA 설치와 귀가 상태 복원
 

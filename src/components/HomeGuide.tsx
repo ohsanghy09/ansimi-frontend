@@ -107,7 +107,11 @@ export default function HomeGuide({ route, locations, serviceArea, facilityPanel
   }
 
   const { fix, error, retry } = useCurrentPosition(handleFix, FIX_MAX_AGE_MS)
-  const next = progress && navigation?.steps.find(({ pathIndex }) => navigation.cumulative[pathIndex] > progress.meters + 8)
+  const upcomingIndex = progress && navigation
+    ? navigation.steps.findIndex(({ pathIndex }) => navigation.cumulative[pathIndex] > progress.meters)
+    : -1
+  const next = upcomingIndex >= 0 ? navigation?.steps[upcomingIndex] : undefined
+  const current = upcomingIndex < 0 ? navigation?.steps.at(-1) : navigation?.steps[upcomingIndex - 1]
 
   return (
     <div className="min-h-dvh bg-[#EEF2E9] text-[#183B36]">
@@ -123,6 +127,7 @@ export default function HomeGuide({ route, locations, serviceArea, facilityPanel
         <KaKaoMap target={target} locations={locations} currentPosition={fix?.location} serviceArea={serviceArea} showPilotArea route={route} onReady={handleMapReady} />
         <div className="rounded-2xl bg-white p-4">
           <p className="text-sm font-semibold">전체 {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
+          {!route.lines.length && <p className="mt-1 text-sm text-[#426459]">일반 도보 안내 · 위험도 평가 데이터 없음</p>}
           {error ? <div className="mt-2 space-y-2">
             <p role="alert" className="text-sm text-[#9d3037]">{error}</p>
             <button type="button" className="text-sm font-semibold underline" onClick={retry}>위치 다시 확인</button>
@@ -138,6 +143,7 @@ export default function HomeGuide({ route, locations, serviceArea, facilityPanel
           {fix && fix.accuracy <= MAX_ACCURACY_M && !!navigation?.length && !rerouting && !rerouteError && <div role="status" className="mt-2 text-sm">
             {progress ? <>
               <p>남은 경로 약 {Math.round(progress.remaining)} m</p>
+              {current && <p className="mt-1 font-semibold">{current.instruction}</p>}
               {next && <p className="mt-1 font-semibold">
                 약 {Math.round(navigation.cumulative[next.pathIndex] - progress.meters)} m 앞 · {next.instruction}
               </p>}

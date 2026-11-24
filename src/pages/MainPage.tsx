@@ -9,7 +9,7 @@ import type { Location, LocationType, SearchResult, SelectedLocations } from '..
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import { useLocationSearch } from '../hooks/useLocationSearch'
 import { useRouteFacilities } from '../hooks/useRouteFacilities'
-import { getServiceArea, recommendRoute, riskStyles, routeExample, withinServiceArea } from '../lib/routes'
+import { getServiceArea, recommendRoute, riskStyles, routeExample, unassessedRouteColor } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 import HomeGuide from '../components/HomeGuide'
 import { positionError, positionOptions, toPositionFix } from '../hooks/useCurrentPosition'
@@ -76,10 +76,6 @@ function MainPage () {
         const { start, end } = locations
         if (!start || !end || searchType || routeRequest.current) return
         clearRoute()
-        if (area && !routeExample && (!withinServiceArea(start, area) || !withinServiceArea(end, area))) {
-            setRouteError('출발지와 도착지를 강남구 시범 서비스 권역 안으로 선택해주세요.')
-            return
-        }
         if (start.latitude === end.latitude && start.longitude === end.longitude) {
             setRouteError('출발지와 도착지를 서로 다른 위치로 선택해주세요.')
             return
@@ -312,11 +308,14 @@ function MainPage () {
                 {routeExample && <p className="text-sm font-semibold text-[#825900]">개발용 예시 경로</p>}
                 {routeError && <p role="alert" className="rounded-xl bg-white p-3 text-sm text-[#9d3037]">{routeError}</p>}
                 {route && <div role="status" className="rounded-xl bg-white p-4 text-[#183B36]">
-                    <p className="font-semibold">추천 경로 · {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
+                    <p className="font-semibold">{route.lines.length ? '추천 경로' : '일반 도보 경로'} · {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
                     {route.lines.length ? <ul aria-label="경로 위험도 범례" className="mt-3 flex flex-wrap gap-x-3 gap-y-2 text-xs">
                         {Object.entries(riskStyles).map(([level, { color, label }]) => <li key={level} className="flex items-center gap-1.5">
                             <span aria-hidden="true" className="h-1 w-4 rounded" style={{ backgroundColor: color }} />{label}
                         </li>)}
+                        {route.navigation && <li className="flex items-center gap-1.5">
+                            <span aria-hidden="true" className="h-1 w-4 rounded" style={{ backgroundColor: unassessedRouteColor }} />위험도 평가 정보 없음
+                        </li>}
                     </ul> : <p className="mt-2 text-sm">이 경로의 위험도 평가 데이터가 없습니다.</p>}
                 </div>}
                 <button type="button" disabled={!locations.start || !locations.end || loadingRoute}

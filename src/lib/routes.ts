@@ -9,6 +9,8 @@ export const riskStyles = {
   RED: { color: '#bc353e', label: '위험도 높음' },
 }
 
+export const unassessedRouteColor = '#5e6877'
+
 export type RiskLevel = keyof typeof riskStyles
 export type RouteLine = { level: RiskLevel; path: Coordinate[] }
 export type Navigation = { path: Coordinate[]; steps: { pathIndex: number; instruction: string }[] }
@@ -126,23 +128,8 @@ function place(location: Location) {
   return { coord: [location.longitude, location.latitude] as Coordinate, name: location.address }
 }
 
-function insideRing([lng, lat]: Coordinate, ring: Coordinate[]): boolean {
-  let inside = false
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
-    const [x, y] = ring[index]
-    const [lastX, lastY] = ring[previous]
-    if ((y > lat) !== (lastY > lat) && lng < x + (lastX - x) * (lat - y) / (lastY - y)) inside = !inside
-  }
-  return inside
-}
-
-export function withinServiceArea(location: Location, area: ServiceArea): boolean {
-  const point = place(location).coord
-  return area.some(([outer, ...holes]) => insideRing(point, outer) && !holes.some((hole) => insideRing(point, hole)))
-}
-
 export async function recommendRoute(origin: Location, destination: Location, signal: AbortSignal): Promise<RecommendedRoute> {
-  const body = { origin: place(origin), destination: place(destination) }
+  const body = { origin: place(origin), destination: place(destination), allowUnassessed: true }
   if (import.meta.env.DEV && routeExample) {
     const { exampleRecommendation } = await import('./routeExample')
     return parseRecommendation(await exampleRecommendation(body.origin.coord, body.destination.coord, signal))
@@ -158,7 +145,10 @@ export async function recommendRoute(origin: Location, destination: Location, si
     if (error?.code === 'INVALID_DISTANCE') {
       throw new Error('출발지와 도착지 사이의 거리는 50 m 이상 5 km 이하여야 합니다.')
     }
-    throw new Error('강남구 시범 권역 안에서 출발지와 도착지를 선택하고, 두 위치 사이의 거리를 조정해주세요.')
+    if (error?.code === 'OUT_OF_AREA') {
+      throw new Error('선택한 위치에서 일반 도보 경로를 조회할 수 없습니다. 잠시 후 다시 시도해주세요.')
+    }
+    throw new Error('출발지와 도착지를 확인하고 다시 시도해주세요.')
   }
   if (!response.ok) throw new Error('경로 조회에 실패했습니다. 잠시 후 다시 시도해주세요.')
   return parseRecommendation(await response.json())

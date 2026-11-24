@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import type { Location, LocationType, SelectedLocations } from '../types/location'
-import { riskStyles } from '../lib/routes'
+import { riskStyles, unassessedRouteColor } from '../lib/routes'
 import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 import currentLocationIcon from '../assets/icons/current-location.svg'
 
@@ -154,14 +154,14 @@ function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPil
     const map = mapRef.current
     if (!maps || !map || !route) return
     const bounds = new maps.LatLngBounds()
-    const paths = route.lines.length ? route.lines.map(({ level, path }) => ({ path, color: riskStyles[level].color }))
-      : route.navigation ? [{ path: route.navigation.path, color: '#315981' }] : []
+    const paths = route.lines.map(({ level, path }) => ({ path, color: riskStyles[level].color, zIndex: 3 }))
+    if (route.navigation) paths.unshift({ path: route.navigation.path, color: unassessedRouteColor, zIndex: 2 })
     if (!paths.length) return
-    const lines = paths.map(({ path, color }) => {
+    const lines = paths.map(({ path, color, zIndex }) => {
       const points = path.map(([lng, lat]) => new maps.LatLng(lat, lng))
       points.forEach((point) => bounds.extend(point))
       return new maps.Polyline({ map, path: points, strokeWeight: 6,
-        strokeColor: color, strokeOpacity: 0.95, zIndex: 2 })
+        strokeColor: color, strokeOpacity: 1, zIndex })
     })
     map.setBounds(bounds, 32, 32, 32, 32)
     return () => lines.forEach((line) => line.setMap(null))

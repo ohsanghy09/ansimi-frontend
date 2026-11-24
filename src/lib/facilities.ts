@@ -35,7 +35,7 @@ const MAX_PAGES = 3
 type Segment = { start: Coordinate; end: Coordinate; vector: Coordinate; length: number }
 
 function getSegments(route: RecommendedRoute): Segment[] {
-  const paths = route.lines.length ? route.lines.map(({ path }) => path) : [route.navigation?.path ?? []]
+  const paths = route.navigation ? [route.navigation.path] : route.lines.map(({ path }) => path)
   return paths.flatMap((path) => path.slice(1).map((end, index) => {
     const start = path[index]
     const vector = metersBetween(start, end)
