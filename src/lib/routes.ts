@@ -17,6 +17,7 @@ export type RecommendedRoute = { distanceM: number; durationMin: number; lines: 
 const backend = 'https://ansimi-backend-production.up.railway.app'
 
 export const routeExample = import.meta.env.DEV
+  && typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('routeExample') === '1'
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -57,6 +58,23 @@ function parseNavigation(value: unknown): Navigation | undefined {
     }
   }
   return { path, steps: steps.sort((a, b) => a.pathIndex - b.pathIndex) }
+}
+
+export function parseStoredRoute(value: unknown): RecommendedRoute | undefined {
+  const route = record(value)
+  if (!route) return undefined
+  const { distanceM, durationMin, lines } = route
+  if (typeof distanceM !== 'number' || !Number.isFinite(distanceM) || distanceM < 0
+    || typeof durationMin !== 'number' || !Number.isFinite(durationMin) || durationMin < 0 || !Array.isArray(lines)) return undefined
+  const normalized: RouteLine[] = []
+  for (const value of lines) {
+    const line = record(value)
+    if (!isRiskLevel(line?.level) || !isPath(line?.path, 2)) return undefined
+    normalized.push({ level: line.level, path: line.path })
+  }
+  const navigation = parseNavigation(route.navigation)
+  if ((!navigation && route.navigation !== undefined) || (!normalized.length && !navigation)) return undefined
+  return { distanceM, durationMin, lines: normalized, navigation }
 }
 
 function parseRecommendation(value: unknown): RecommendedRoute {

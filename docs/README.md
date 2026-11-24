@@ -41,6 +41,10 @@ Swagger는 `segments`의 내부 형식을 `JsonNode`로 표시한다. 위 GeoJSO
 
 실시간 구간 안내에는 출발부터 도착까지 순서가 있는 전체 경로와 안내 지점이 필요하다. 개발용 응답은 후보에 `navigation.path`(출발→도착 순서의 `[경도, 위도]` 배열)와 `navigation.steps`(`pathIndex`와 `instruction`을 담은 배열)를 포함한다. 배포 API에 연결하기 전에 백엔드와 이 응답 형식을 확정한다. `navigation`이 없는 응답은 지도에 위험도 구간과 GPS 위치를 표시하고, 실시간 구간 안내 데이터가 없다고 안내한다.
 
+### PWA 설치와 귀가 상태 복원
+
+HTTPS 배포 화면에서 브라우저의 홈 화면 추가 또는 앱 설치 기능으로 설치한다. 귀가 안내를 시작하거나 재탐색으로 경로가 바뀌면 앱에 필요한 경로와 위치를 이 기기의 저장소에 기록한다. 새로고침 후 사용자가 이어가기를 선택하면 위치를 다시 확인한다. 저장된 상태는 2시간 후 만료되며, 안내를 종료하거나 도착하면 삭제한다. 앱이 숨겨지면 위치 감시를 중단하고, 다시 보이면 새 위치 갱신을 기다린다.
+
 ### AI 데이터와 후속 지도 표시
 
 AI 파이프라인은 안전시설과 위험 요인을 집계해 `risk_grid.geojson`을 생성한다. 백엔드는 이 파일을 배치로 PostGIS에 적재하고, Tmap 후보 경로와 위험 격자가 겹치는 부분을 계산해 구간별 등급을 반환한다. 지도 범례에서 `RED`는 ‘위험도 높음’으로 표시한다. [AI 파이프라인](https://github.com/shinhan-ansimi/ansimi-ai/blob/develop/README.md) · [백엔드 격자 적재 코드](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/riskimport/RiskGridImportService.java) · [경로 추천 서비스](https://github.com/shinhan-ansimi/ansimi-backend/blob/develop/src/main/java/com/ansimi/route/RouteService.java)

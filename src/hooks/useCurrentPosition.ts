@@ -28,33 +28,59 @@ export function useCurrentPosition(onFix: (fix: PositionFix | null) => void, max
   useEffect(() => {
     const geolocation = navigator.geolocation
     if (!geolocation) return
-    let active = true
+    let subscription: number | undefined
+    let generation = 0
     let timeout: number | undefined
     let latestTimestamp = 0
+    let visibleSince = 0
     function clearFix() {
       setFix(null)
       receiveFix(null)
     }
-    const subscription = geolocation.watchPosition((position) => {
-      if (!active) return
-      if (position.timestamp <= latestTimestamp || Date.now() - position.timestamp >= maxAge) return
-      latestTimestamp = position.timestamp
+    function stopWatch() {
+      generation += 1
       window.clearTimeout(timeout)
-      setError('')
-      const fix = toPositionFix(position)
-      setFix(fix)
-      receiveFix(fix)
-      timeout = window.setTimeout(clearFix, Math.max(0, maxAge - (Date.now() - position.timestamp)))
-    }, (reason) => {
-      if (!active) return
-      window.clearTimeout(timeout)
+      if (subscription !== undefined) geolocation.clearWatch(subscription)
+      subscription = undefined
+    }
+    function startWatch() {
+      if (subscription !== undefined || document.visibilityState !== 'visible') return
+      visibleSince = Date.now()
+      const active = ++generation
+      subscription = geolocation.watchPosition((position) => {
+        if (active !== generation || document.visibilityState !== 'visible') return
+        if (position.timestamp < visibleSince || position.timestamp <= latestTimestamp || Date.now() - position.timestamp >= maxAge) return
+        latestTimestamp = position.timestamp
+        window.clearTimeout(timeout)
+        setError('')
+        const fix = toPositionFix(position)
+        setFix(fix)
+        receiveFix(fix)
+        timeout = window.setTimeout(clearFix, Math.max(0, maxAge - (Date.now() - position.timestamp)))
+      }, (reason) => {
+        if (active !== generation) return
+        window.clearTimeout(timeout)
+        clearFix()
+        setError(positionError(reason))
+      }, positionOptions)
+    }
+    function suspendWatch() {
+      stopWatch()
       clearFix()
-      setError(positionError(reason))
-    }, positionOptions)
+    }
+    function syncVisibility() {
+      if (document.visibilityState === 'visible') startWatch()
+      else suspendWatch()
+    }
+    startWatch()
+    document.addEventListener('visibilitychange', syncVisibility)
+    window.addEventListener('pagehide', suspendWatch)
+    window.addEventListener('pageshow', startWatch)
     return () => {
-      active = false
-      window.clearTimeout(timeout)
-      geolocation.clearWatch(subscription)
+      stopWatch()
+      document.removeEventListener('visibilitychange', syncVisibility)
+      window.removeEventListener('pagehide', suspendWatch)
+      window.removeEventListener('pageshow', startWatch)
     }
   }, [attempt, maxAge])
 

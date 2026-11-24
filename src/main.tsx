@@ -20,3 +20,9 @@ createRoot(document.getElementById('root')!).render(
   
   </StrictMode>,
 )
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+    console.warn('서비스 워커를 등록하지 못했습니다.', error)
+  })
+}
