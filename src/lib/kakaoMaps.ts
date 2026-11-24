@@ -15,12 +15,28 @@ type SearchService = {
   }[], status: string) => void): void
 }
 type LatLng = { getLat(): number; getLng(): number }
-export type MapInstance = { getCenter(): LatLng; setCenter(position: LatLng): void }
+type Bounds = { extend(position: LatLng): void }
+export type MapInstance = {
+  getCenter(): LatLng
+  setCenter(position: LatLng): void
+  setBounds(bounds: Bounds, top?: number, right?: number, bottom?: number, left?: number): void
+}
+type ShapeOptions = {
+  map: MapInstance
+  strokeWeight: number
+  strokeColor: string
+  strokeOpacity: number
+  zIndex: number
+}
+type Overlay = { setMap(map: MapInstance | null): void }
 export type KakaoMaps = {
   load(callback: () => void): void
   LatLng: new (latitude: number, longitude: number) => LatLng
+  LatLngBounds: new () => Bounds
   Map: new (container: HTMLElement, options: { center: LatLng; level: number }) => MapInstance
-  Marker: new (options: { map: MapInstance; position: LatLng; title: string }) => { setMap(map: MapInstance | null): void }
+  Marker: new (options: { map: MapInstance; position: LatLng; title: string }) => Overlay
+  Polygon: new (options: ShapeOptions & { path: LatLng[][]; fillColor: string; fillOpacity: number }) => Overlay
+  Polyline: new (options: ShapeOptions & { path: LatLng[] }) => Overlay
   event: {
     addListener(map: MapInstance, name: string, callback: () => void): void
     removeListener(map: MapInstance, name: string, callback: () => void): void

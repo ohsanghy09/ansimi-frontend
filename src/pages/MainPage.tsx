@@ -1,12 +1,14 @@
 // 역할: 전체 위치 선택 상태를 관리하고 LocationCard, LocationSearch, KaKaoMap, LocationConfirm을 연결합니다.
 import LocationCard from "../components/location/LocationCard"
 import KaKaoMap from "../components/KaKaoMap"
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import LocationSearch from '../components/location/LocationSearch'
 import LocationConfirm from '../components/location/LocationConfirm'
 import type { Location, LocationType, SearchResult, SelectedLocations } from '../types/location'
 import type { KakaoMaps } from '../lib/kakaoMaps'
 import { useLocationSearch } from '../hooks/useLocationSearch'
+import { getServiceArea, recommendRoute, riskStyles, routeExample, withinServiceArea } from '../lib/routes'
+import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 
 
 
@@ -19,7 +21,65 @@ function MainPage () {
     const [candidateMessage, setCandidateMessage] = useState('')
     const [maps, setMaps] = useState<KakaoMaps | null>(null)
     const [mapTarget, setMapTarget] = useState<Location | null>(null)
+    const [area, setArea] = useState<ServiceArea | null>(null)
+    const [areaFailed, setAreaFailed] = useState(false)
+    const [areaAttempt, setAreaAttempt] = useState(0)
+    const [route, setRoute] = useState<RecommendedRoute | null>(null)
+    const [loadingRoute, setLoadingRoute] = useState(false)
+    const [routeError, setRouteError] = useState('')
+    const routeRequest = useRef<AbortController | null>(null)
     const { results, searching, message, search, resetSearch } = useLocationSearch(maps)
+
+    useEffect(() => {
+        const controller = new AbortController()
+        getServiceArea(controller.signal).then((result) => {
+            if (!controller.signal.aborted) setArea(result)
+        }).catch(() => {
+            if (!controller.signal.aborted) setAreaFailed(true)
+        })
+        return () => controller.abort()
+    }, [areaAttempt])
+
+    useEffect(() => () => routeRequest.current?.abort(), [])
+
+    function clearRoute() {
+        routeRequest.current?.abort()
+        routeRequest.current = null
+        setRoute(null)
+        setRouteError('')
+        setLoadingRoute(false)
+    }
+
+    async function findRoute() {
+        const { start, end } = locations
+        if (!start || !end || searchType || routeRequest.current) return
+        clearRoute()
+        if (area && !routeExample && (!withinServiceArea(start, area) || !withinServiceArea(end, area))) {
+            setRouteError('출발지와 도착지를 강남구 시범 서비스 권역 안으로 선택해주세요.')
+            return
+        }
+        if (start.latitude === end.latitude && start.longitude === end.longitude) {
+            setRouteError('출발지와 도착지를 서로 다른 위치로 선택해주세요.')
+            return
+        }
+        const controller = new AbortController()
+        routeRequest.current = controller
+        setLoadingRoute(true)
+        try {
+            const recommendation = await recommendRoute(start, end, controller.signal)
+            if (routeRequest.current === controller) setRoute(recommendation)
+        } catch (reason) {
+            if (routeRequest.current === controller && !controller.signal.aborted) {
+                setRouteError(reason instanceof Error && !(reason instanceof TypeError || reason instanceof DOMException)
+                    ? reason.message : '경로 조회에 실패했습니다. 연결을 확인하고 다시 시도해주세요.')
+            }
+        } finally {
+            if (routeRequest.current === controller) {
+                routeRequest.current = null
+                setLoadingRoute(false)
+            }
+        }
+    }
 
     function cancelSelection() {
         resetSearch()
@@ -52,6 +112,7 @@ function MainPage () {
 
     function confirmLocation() {
         if (!searchType || !candidate) return
+        clearRoute()
         setLocations((previous) => ({ ...previous, [searchType]: candidate }))
         cancelSelection()
     }
@@ -93,8 +154,19 @@ function MainPage () {
             {/* 카카오맵 컴포넌트*/}
             <div className="mt-6">
                 <KaKaoMap target={mapTarget} onReady={setMaps}
-                    searchType={searchType} locations={locations}
+                    searchType={searchType} locations={locations} showPilotArea serviceArea={area} route={route}
                     onCandidateChange={setCandidate} onMessageChange={setCandidateMessage} />
+                {area && maps && <p className="mt-2 flex items-center gap-2 text-xs font-medium text-[#244569]">
+                    <span aria-hidden="true" className="size-3 rounded-sm border border-[#305787] bg-[#5284be]/20" />
+                    강남구 시범 서비스 권역
+                </p>}
+                {areaFailed && <p className="mt-2 text-xs text-[#244569]">
+                    서비스 권역을 불러오지 못했습니다.{' '}
+                    <button type="button" className="font-semibold underline" onClick={() => {
+                        setAreaFailed(false)
+                        setAreaAttempt((attempt) => attempt + 1)
+                    }}>다시 불러오기</button>
+                </p>}
             </div>
 
             {searchType && (
@@ -108,6 +180,23 @@ function MainPage () {
                     />
                 </div>
             )}
+
+            {!searchType && <section aria-label="추천 경로" className="mt-5 space-y-3">
+                {routeExample && <p className="text-sm font-semibold text-[#825900]">개발용 예시 경로</p>}
+                {routeError && <p role="alert" className="rounded-xl bg-white p-3 text-sm text-[#9d3037]">{routeError}</p>}
+                {route && <div role="status" className="rounded-xl bg-white p-4 text-[#183B36]">
+                    <p className="font-semibold">추천 경로 · {route.distanceM.toLocaleString('ko-KR')} m · 약 {route.durationMin}분</p>
+                    {route.lines.length ? <ul aria-label="경로 위험도 범례" className="mt-3 flex flex-wrap gap-x-3 gap-y-2 text-xs">
+                        {Object.entries(riskStyles).map(([level, { color, label }]) => <li key={level} className="flex items-center gap-1.5">
+                            <span aria-hidden="true" className="h-1 w-4 rounded" style={{ backgroundColor: color }} />{label}
+                        </li>)}
+                    </ul> : <p className="mt-2 text-sm">이 경로의 위험도 평가 데이터가 없습니다.</p>}
+                </div>}
+                <button type="button" disabled={!locations.start || !locations.end || loadingRoute}
+                    onClick={findRoute} className="w-full rounded-xl bg-[#183B36] px-4 py-3 font-semibold text-white disabled:opacity-50">
+                    {loadingRoute ? '경로를 찾고 있습니다…' : route || routeError ? '경로 다시 찾기' : '경로 찾기'}
+                </button>
+            </section>}
 
             {/* 우측 하단 문구 */}
             <footer className="mt-6 text-right">

@@ -3,17 +3,22 @@ import { useEffect, useRef, useState } from 'react'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import type { KakaoMaps, MapInstance } from '../lib/kakaoMaps'
 import type { Location, LocationType, SelectedLocations } from '../types/location'
+import { riskStyles } from '../lib/routes'
+import type { RecommendedRoute, ServiceArea } from '../lib/routes'
 
 type KaKaoMapProps = {
   target?: Location | null
   onReady?: (maps: KakaoMaps) => void
   searchType?: LocationType | null
   locations?: SelectedLocations
+  serviceArea?: ServiceArea | null
+  showPilotArea?: boolean
+  route?: RecommendedRoute | null
   onCandidateChange?: (location: Location | null) => void
   onMessageChange?: (message: string) => void
 }
 
-function KaKaoMap({ target, onReady, searchType, locations, onCandidateChange, onMessageChange }: KaKaoMapProps) {
+function KaKaoMap({ target, onReady, searchType, locations, serviceArea, showPilotArea, route, onCandidateChange, onMessageChange }: KaKaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapInstance | null>(null)
   const [maps, setMaps] = useState<KakaoMaps | null>(null)
@@ -26,7 +31,8 @@ function KaKaoMap({ target, onReady, searchType, locations, onCandidateChange, o
     loadKakaoMaps().then((sdk) => {
       if (!active) return
       mapRef.current = new sdk.Map(container, {
-        center: new sdk.LatLng(37.5665, 126.978), level: 2,
+        center: showPilotArea ? new sdk.LatLng(37.499, 127.062) : new sdk.LatLng(37.5665, 126.978),
+        level: showPilotArea ? 7 : 2,
       })
       setMaps(sdk)
     }).catch((reason: unknown) => {
@@ -37,7 +43,7 @@ function KaKaoMap({ target, onReady, searchType, locations, onCandidateChange, o
       mapRef.current = null
       container.replaceChildren()
     }
-  }, [])
+  }, [showPilotArea])
 
   useEffect(() => {
     if (maps) onReady?.(maps)
@@ -119,9 +125,50 @@ function KaKaoMap({ target, onReady, searchType, locations, onCandidateChange, o
     return () => markers.forEach((marker) => marker.setMap(null))
   }, [maps, locations])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!maps || !map || !serviceArea) return
+    const polygons = serviceArea.map((polygon) => new maps.Polygon({
+      map,
+      path: polygon.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng))),
+      strokeWeight: 3, strokeColor: '#305787', strokeOpacity: 0.9,
+      fillColor: '#5284be', fillOpacity: 0.13, zIndex: 1,
+    }))
+    return () => polygons.forEach((polygon) => polygon.setMap(null))
+  }, [maps, serviceArea])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!maps || !map || !route?.lines.length) return
+    const bounds = new maps.LatLngBounds()
+    const lines = route.lines.map(({ level, path }) => {
+      const points = path.map(([lng, lat]) => new maps.LatLng(lat, lng))
+      points.forEach((point) => bounds.extend(point))
+      return new maps.Polyline({ map, path: points, strokeWeight: 6,
+        strokeColor: riskStyles[level].color, strokeOpacity: 0.95, zIndex: 2 })
+    })
+    map.setBounds(bounds, 32, 32, 32, 32)
+    return () => lines.forEach((line) => line.setMap(null))
+  }, [maps, route])
+
+  function fitArea() {
+    const map = mapRef.current
+    if (!maps || !map || !serviceArea) return
+    const bounds = new maps.LatLngBounds()
+    for (const [outer] of serviceArea) {
+      outer.forEach(([lng, lat]) => bounds.extend(new maps.LatLng(lat, lng)))
+    }
+    map.setBounds(bounds, 24, 24, 24, 24)
+  }
+
   return (
     <div className="relative isolate overflow-hidden rounded-lg border-2 border-gray-300">
       <div ref={containerRef} aria-label="위치 선택 지도" className="h-[50dvh] w-full" />
+      {maps && serviceArea && !searchType && (
+        <button type="button" onClick={fitArea} className="absolute right-2 top-2 z-10 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-[#244569] shadow">
+          시범 권역 보기
+        </button>
+      )}
       {!maps && <p role="status" className="absolute inset-0 z-10 flex items-center justify-center bg-[#EEF2E9] p-6 text-center text-sm text-[#183B36]">{error || '지도를 불러오고 있습니다…'}</p>}
       {maps && searchType && <>
         <p className="pointer-events-none absolute inset-x-3 top-3 z-10 rounded-xl bg-white/95 p-3 text-center text-sm font-semibold text-[#183B36] shadow">
